@@ -1,0 +1,55 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: affiliateai_backend
+    ports:
+      - "${BACKEND_PORT}:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: affiliateai_frontend
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    container_name: affiliateai_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - affiliateai_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: affiliateai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - affiliateai_redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  affiliateai_postgres_data:
+  affiliateai_redis_data:

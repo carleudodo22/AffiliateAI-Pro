@@ -1,0 +1,439 @@
+:root {
+  --bg: #020403;
+  --panel: rgba(8, 20, 13, 0.88);
+  --green: #39ff14;
+  --green-soft: rgba(57, 255, 20, 0.14);
+  --green-border: rgba(57, 255, 20, 0.36);
+  --text: #ecffee;
+  --muted: #9fbea4;
+  --danger: #ff5f5f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  padding: 42px 22px 70px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(57, 255, 20, 0.24), transparent 28%),
+    radial-gradient(circle at 80% 20%, rgba(57, 255, 20, 0.14), transparent 24%),
+    linear-gradient(180deg, #020403, #061109 58%, #020403);
+}
+
+.gridGlow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(57, 255, 20, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57, 255, 20, 0.055) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
+  animation: gridMove 12s linear infinite;
+}
+
+.hero {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 1px solid var(--green-border);
+  border-radius: 999px;
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--green);
+  box-shadow: 0 0 28px rgba(57, 255, 20, 0.18);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 18px var(--green);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+h1 {
+  margin: 28px auto 18px;
+  font-size: clamp(52px, 9vw, 118px);
+  line-height: 0.9;
+  letter-spacing: -0.08em;
+  text-shadow: 0 0 36px rgba(57, 255, 20, 0.22);
+}
+
+h1 span {
+  color: var(--green);
+}
+
+.subtitle {
+  max-width: 780px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: clamp(17px, 2vw, 23px);
+  line-height: 1.55;
+}
+
+.productHunterLayout {
+  width: 100%;
+  margin: 44px auto 0;
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 22px;
+  text-align: left;
+}
+
+.formPanel,
+.resultPanel,
+.historyPanel {
+  border: 1px solid var(--green-border);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow:
+    0 0 40px rgba(57, 255, 20, 0.14),
+    inset 0 0 40px rgba(57, 255, 20, 0.04);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--green-border);
+  color: var(--green);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 18px var(--green);
+}
+
+.formGrid {
+  padding: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.formGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.formGrid label.full {
+  grid-column: 1 / -1;
+}
+
+.formGrid input,
+.formGrid select {
+  width: 100%;
+  border: 1px solid var(--green-border);
+  outline: none;
+  border-radius: 12px;
+  padding: 13px 14px;
+  background: rgba(0, 0, 0, 0.46);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.formGrid input:focus,
+.formGrid select:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 18px rgba(57, 255, 20, 0.24);
+}
+
+.primaryButton {
+  text-decoration: none;
+  padding: 15px 22px;
+  border-radius: 14px;
+  font-weight: 900;
+  transition: 0.2s ease;
+  color: #001702;
+  background: var(--green);
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.35);
+}
+
+.primaryButton:hover {
+  transform: translateY(-3px);
+}
+
+.analyzeButton {
+  display: block;
+  width: calc(100% - 44px);
+  margin: 0 22px 22px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.errorMessage {
+  margin: 0 22px 22px;
+  color: var(--danger);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.emptyState {
+  padding: 34px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.resultContent {
+  padding: 24px;
+}
+
+.scoreCircle {
+  width: 128px;
+  height: 128px;
+  border: 2px solid var(--green);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  box-shadow:
+    0 0 34px rgba(57, 255, 20, 0.34),
+    inset 0 0 28px rgba(57, 255, 20, 0.14);
+  color: var(--green);
+}
+
+.scoreCircle span {
+  font-size: 46px;
+  font-weight: 950;
+}
+
+.scoreCircle small {
+  margin-left: 4px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.resultContent h2 {
+  text-align: center;
+  margin: 0;
+  color: var(--green);
+  font-size: 28px;
+  text-shadow: 0 0 22px rgba(57, 255, 20, 0.22);
+}
+
+.resultProduct {
+  text-align: center;
+  color: var(--muted);
+  margin: 8px 0 22px;
+}
+
+.scoreGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.scoreGrid div {
+  border: 1px solid var(--green-border);
+  border-radius: 16px;
+  padding: 14px 10px;
+  background: rgba(57, 255, 20, 0.06);
+  text-align: center;
+}
+
+.scoreGrid strong {
+  display: block;
+  color: var(--green);
+  font-size: 24px;
+}
+
+.scoreGrid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.strategyBlock {
+  border-top: 1px solid rgba(57, 255, 20, 0.18);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.strategyBlock h3 {
+  margin: 0 0 8px;
+  color: var(--green);
+}
+
+.strategyBlock p,
+.strategyBlock li {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.strategyBlock ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.historyPanel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 24px auto 0;
+  text-align: left;
+}
+
+.historyEmpty {
+  margin: 0;
+  padding: 24px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.historyList {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.historyCard {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(57, 255, 20, 0.18);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(57, 255, 20, 0.055);
+  transition: 0.2s ease;
+}
+
+.historyCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--green);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.14);
+}
+
+.historyCard strong {
+  display: block;
+  color: var(--green);
+  font-size: 16px;
+}
+
+.historyCard span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.historyScore {
+  min-width: 160px;
+  text-align: right;
+}
+
+.historyScore strong {
+  font-size: 28px;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes gridMove {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(44px);
+  }
+}
+
+@media (max-width: 980px) {
+  .productHunterLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .historyCard {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .historyScore {
+    text-align: left;
+  }
+}
+
+@media (max-width: 620px) {
+  .page {
+    padding: 30px 14px 50px;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreGrid {
+    grid-template-columns: 1fr;
+  }
+}
