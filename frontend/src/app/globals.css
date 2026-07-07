@@ -869,3 +869,297 @@ select option {
     grid-template-columns: 1fr;
   }
 }
+
+.autopilotPanel {
+  margin-top: 26px;
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  overflow: hidden;
+  text-align: left;
+  background:
+    linear-gradient(180deg, rgba(11, 30, 17, 0.94), rgba(3, 10, 6, 0.94));
+  box-shadow:
+    0 0 34px rgba(57, 255, 20, 0.11),
+    inset 0 0 38px rgba(57, 255, 20, 0.035);
+}
+
+.autopilotIntro {
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 22px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
+}
+
+.autopilotIntro h2 {
+  margin: 0;
+  color: var(--green);
+  font-size: 25px;
+}
+
+.autopilotIntro p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.autopilotButton {
+  min-width: 220px;
+}
+
+.autopilotControls {
+  padding: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
+}
+
+.autopilotControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.autopilotControls label.wide {
+  grid-column: span 2;
+}
+
+.autopilotControls input,
+.autopilotControls select {
+  width: 100%;
+  border: 1px solid rgba(57, 255, 20, 0.24);
+  outline: none;
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.autopilotControls input:focus,
+.autopilotControls select:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.08);
+}
+
+.autopilotEmpty {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.autopilotEmpty strong {
+  color: var(--green);
+}
+
+.autopilotResult {
+  padding: 22px;
+}
+
+.autopilotScoreBox {
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  border-radius: 22px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(57, 255, 20, 0.14), transparent 36%),
+    rgba(57, 255, 20, 0.045);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 22px;
+}
+
+.autopilotScoreBox span,
+.autopilotCard span {
+  display: block;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.autopilotScoreBox h3 {
+  margin: 9px 0;
+  color: var(--green);
+  font-size: 30px;
+  text-transform: capitalize;
+}
+
+.autopilotScoreBox p,
+.autopilotCard p,
+.autopilotCard li {
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.autopilotScoreCircle {
+  width: 120px;
+  height: 120px;
+  border: 2px solid var(--green);
+  border-radius: 999px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--green);
+  box-shadow: 0 0 30px rgba(57, 255, 20, 0.24);
+  flex-shrink: 0;
+}
+
+.autopilotScoreCircle strong {
+  font-size: 42px;
+}
+
+.autopilotScoreCircle small {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.autopilotGrid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.autopilotCard {
+  border: 1px solid rgba(57, 255, 20, 0.17);
+  border-radius: 20px;
+  padding: 17px;
+  background: rgba(57, 255, 20, 0.045);
+}
+
+.autopilotCard.wide {
+  grid-column: span 2;
+}
+
+.autopilotCard strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--green);
+  font-size: 20px;
+  text-transform: capitalize;
+}
+
+.autopilotCard button,
+.autopilotHistoryHeader button,
+.autopilotHistoryCard button {
+  margin-top: 12px;
+  border: 1px solid rgba(57, 255, 20, 0.28);
+  border-radius: 999px;
+  padding: 9px 13px;
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.autopilotCard button:hover,
+.autopilotHistoryHeader button:hover,
+.autopilotHistoryCard button:hover {
+  background: var(--green);
+  color: #001702;
+}
+
+.autopilotHistory {
+  padding: 22px;
+  border-top: 1px solid rgba(57, 255, 20, 0.16);
+}
+
+.autopilotHistoryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.autopilotHistoryHeader h3 {
+  margin: 0;
+  color: var(--green);
+  font-size: 22px;
+}
+
+.autopilotHistoryHeader p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.autopilotHistoryEmpty {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid rgba(57, 255, 20, 0.14);
+  border-radius: 16px;
+  background: rgba(57, 255, 20, 0.04);
+  color: var(--muted);
+  text-align: center;
+}
+
+.autopilotHistoryList {
+  display: grid;
+  gap: 12px;
+}
+
+.autopilotHistoryCard {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(57, 255, 20, 0.16);
+  border-radius: 17px;
+  padding: 15px;
+  background: rgba(57, 255, 20, 0.04);
+}
+
+.autopilotHistoryCard strong {
+  display: block;
+  color: var(--green);
+  text-transform: capitalize;
+}
+
+.autopilotHistoryCard span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+@media (max-width: 900px) {
+  .autopilotIntro,
+  .autopilotScoreBox,
+  .autopilotHistoryHeader,
+  .autopilotHistoryCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .autopilotButton,
+  .autopilotHistoryHeader button,
+  .autopilotHistoryCard button {
+    width: 100%;
+  }
+
+  .autopilotControls {
+    grid-template-columns: 1fr;
+  }
+
+  .autopilotControls label.wide {
+    grid-column: span 1;
+  }
+
+  .autopilotGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .autopilotCard.wide {
+    grid-column: span 1;
+  }
+}
