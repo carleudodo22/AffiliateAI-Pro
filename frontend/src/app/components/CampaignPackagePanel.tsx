@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { jsPDF } from "jspdf";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -345,23 +346,26 @@ AffiliateAI Pro - MVP Local`;
 
   const hasAnyData = autopilot || productHunter || contentGenerator || creativeImage;
 
-  function getExportFileName() {
+  function getCleanProductName() {
     const productName =
       getValue(autopilot, ["selected_product"]) ||
       getValue(contentGenerator, ["product_name"]) ||
       getValue(creativeImage, ["product_name"]) ||
       "campanha";
 
-    const cleanProductName = productName
+    return productName
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
+  }
 
+  function getExportFileName(extension: "txt" | "pdf") {
+    const cleanProductName = getCleanProductName();
     const date = new Date().toISOString().slice(0, 10);
 
-    return `affiliateai-${cleanProductName || "campanha"}-${date}.txt`;
+    return `affiliateai-${cleanProductName || "campanha"}-${date}.${extension}`;
   }
 
   function exportTxtFile() {
@@ -378,7 +382,7 @@ AffiliateAI Pro - MVP Local`;
     const downloadLink = document.createElement("a");
 
     downloadLink.href = downloadUrl;
-    downloadLink.download = getExportFileName();
+    downloadLink.download = getExportFileName("txt");
     document.body.appendChild(downloadLink);
     downloadLink.click();
     downloadLink.remove();
@@ -386,6 +390,125 @@ AffiliateAI Pro - MVP Local`;
     URL.revokeObjectURL(downloadUrl);
 
     setCopyMessage("Campanha exportada em .TXT com sucesso.");
+  }
+
+  function exportPdfFile() {
+    if (!hasAnyData) {
+      setErrorMessage("Gere ou carregue uma campanha antes de exportar.");
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const marginX = 14;
+    const marginTop = 18;
+    const marginBottom = 16;
+    const usableWidth = pageWidth - marginX * 2;
+
+    let y = marginTop;
+
+    function addFooter(pageNumber: number) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `AffiliateAI Pro - Página ${pageNumber}`,
+        marginX,
+        pageHeight - 8
+      );
+    }
+
+    function addNewPage() {
+      addFooter(doc.getNumberOfPages());
+      doc.addPage();
+      y = marginTop;
+    }
+
+    doc.setFillColor(8, 14, 12);
+    doc.rect(0, 0, pageWidth, 34, "F");
+
+    doc.setTextColor(0, 255, 136);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("AffiliateAI Pro", marginX, 16);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.text("Pacote Completo de Campanha", marginX, 24);
+
+    y = 45;
+
+    doc.setTextColor(20, 20, 20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Campanha exportada", marginX, y);
+
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, marginX, y);
+
+    y += 12;
+
+    const sections = packageText.split("\n\n");
+
+    sections.forEach((section) => {
+      const lines = section.split("\n");
+      const title = lines[0] || "";
+      const body = lines.slice(1).join("\n");
+
+      if (y > pageHeight - marginBottom - 24) {
+        addNewPage();
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 120, 70);
+
+      const titleLines = doc.splitTextToSize(title, usableWidth);
+      titleLines.forEach((line: string) => {
+        if (y > pageHeight - marginBottom) {
+          addNewPage();
+        }
+
+        doc.text(line, marginX, y);
+        y += 6;
+      });
+
+      if (body.trim()) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(35, 35, 35);
+
+        const bodyLines = doc.splitTextToSize(body, usableWidth);
+
+        bodyLines.forEach((line: string) => {
+          if (y > pageHeight - marginBottom) {
+            addNewPage();
+          }
+
+          doc.text(line, marginX, y);
+          y += 5;
+        });
+      }
+
+      y += 5;
+    });
+
+    addFooter(doc.getNumberOfPages());
+
+    doc.save(getExportFileName("pdf"));
+
+    setCopyMessage("Campanha exportada em PDF com sucesso.");
   }
 
   return (
@@ -426,7 +549,11 @@ AffiliateAI Pro - MVP Local`;
         </button>
 
         <button onClick={exportTxtFile} disabled={!hasAnyData}>
-          Exportar campanha .TXT
+          Exportar .TXT
+        </button>
+
+        <button onClick={exportPdfFile} disabled={!hasAnyData}>
+          Exportar PDF
         </button>
       </div>
 
@@ -607,7 +734,7 @@ AffiliateAI Pro - MVP Local`;
               <h3>Campanha completa pronta para copiar ou exportar</h3>
               <p>
                 Esse bloco junta todos os agentes em uma única entrega. Agora
-                você também pode baixar essa campanha como arquivo .TXT no seu PC.
+                você pode baixar essa campanha como .TXT ou PDF no seu PC.
               </p>
             </div>
 
@@ -624,6 +751,8 @@ AffiliateAI Pro - MVP Local`;
               </button>
 
               <button onClick={exportTxtFile}>Baixar .TXT</button>
+
+              <button onClick={exportPdfFile}>Baixar PDF</button>
             </div>
           </div>
         </>
