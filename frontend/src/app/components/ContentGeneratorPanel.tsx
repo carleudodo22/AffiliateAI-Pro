@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -26,6 +26,17 @@ type ContentGeneratorResponse = {
     ctas: string[];
     hashtags: string[];
   };
+};
+
+type ContentHistoryItem = {
+  id: number;
+  source_analysis_id: number | null;
+  niche: string;
+  product_name: string;
+  platform: string;
+  tone: string;
+  objective: string;
+  created_at: string;
 };
 
 type ContentGeneratorPanelProps = {
@@ -54,9 +65,72 @@ export default function ContentGeneratorPanel({
   const [contentResult, setContentResult] =
     useState<ContentGeneratorResponse | null>(null);
 
+  const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>([]);
+
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [openingContentId, setOpeningContentId] = useState<number | null>(null);
+
   const [copyMessage, setCopyMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  async function loadContentHistory() {
+    if (!token) {
+      setContentHistory([]);
+      return;
+    }
+
+    setLoadingHistory(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/content-generator/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar histórico de conteúdos.");
+      }
+
+      const data: ContentHistoryItem[] = await response.json();
+      setContentHistory(data);
+    } catch {
+      setContentHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
+
+  async function openOldContent(contentId: number) {
+    setOpeningContentId(contentId);
+    setErrorMessage("");
+    setCopyMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/content-generator/${contentId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend respondeu erro ${response.status}: ${errorText}`);
+      }
+
+      const data: ContentGeneratorResponse = await response.json();
+      setContentResult(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro desconhecido ao abrir conteúdo antigo.");
+      }
+    } finally {
+      setOpeningContentId(null);
+    }
+  }
 
   async function generateContent() {
     setLoading(true);
@@ -90,6 +164,7 @@ export default function ContentGeneratorPanel({
 
       const data: ContentGeneratorResponse = await response.json();
       setContentResult(data);
+      await loadContentHistory();
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -110,6 +185,10 @@ export default function ContentGeneratorPanel({
   function joinLines(items: string[]) {
     return items.join("\n");
   }
+
+  useEffect(() => {
+    loadContentHistory();
+  }, [token]);
 
   return (
     <section className="contentPanel">
@@ -332,6 +411,55 @@ export default function ContentGeneratorPanel({
           </article>
         </div>
       )}
+
+      <div className="contentHistoryBlock">
+        <div className="contentHistoryHeader">
+          <div>
+            <h3>Histórico de Conteúdos Gerados</h3>
+            <p>Abra conteúdos antigos e copie novamente quando precisar.</p>
+          </div>
+
+          <button onClick={loadContentHistory}>
+            {loadingHistory ? "Carregando..." : "Atualizar"}
+          </button>
+        </div>
+
+        {contentHistory.length === 0 && !loadingHistory && (
+          <p className="contentHistoryEmpty">
+            Nenhum conteúdo gerado ainda. Gere seu primeiro conteúdo acima.
+          </p>
+        )}
+
+        {contentHistory.length > 0 && (
+          <div className="contentHistoryList">
+            {contentHistory.map((item) => (
+              <article
+                className={
+                  contentResult?.id === item.id
+                    ? "contentHistoryCard active"
+                    : "contentHistoryCard"
+                }
+                key={item.id}
+              >
+                <div>
+                  <strong>
+                    #{item.id} · {item.product_name}
+                  </strong>
+
+                  <span>
+                    {item.niche} · {item.platform} · {item.tone} ·{" "}
+                    {item.objective}
+                  </span>
+                </div>
+
+                <button onClick={() => openOldContent(item.id)}>
+                  {openingContentId === item.id ? "Abrindo..." : "Abrir"}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
