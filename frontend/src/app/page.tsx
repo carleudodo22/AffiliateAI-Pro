@@ -54,6 +54,24 @@ type HistoryItem = {
   created_at: string;
 };
 
+type DashboardAnalysisSummary = {
+  id: number;
+  product_name: string;
+  niche: string;
+  marketplace: string;
+  decision: string;
+  final_score: number;
+  created_at: string;
+};
+
+type DashboardMetrics = {
+  total_analyses: number;
+  average_score: number;
+  good_opportunities: number;
+  best_opportunity: DashboardAnalysisSummary | null;
+  last_analysis: DashboardAnalysisSummary | null;
+};
+
 export default function Home() {
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [token, setToken] = useState("");
@@ -79,6 +97,8 @@ export default function Home() {
 
   const [result, setResult] = useState<ProductHunterResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [dashboard, setDashboard] = useState<DashboardMetrics | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -110,7 +130,11 @@ export default function Home() {
       localStorage.setItem("affiliateai_token", data.access_token);
       setToken(data.access_token);
       setUser(data.user);
-      await loadHistory();
+
+      await Promise.all([
+        loadHistory(data.access_token),
+        loadDashboard(data.access_token),
+      ]);
     } catch (error) {
       if (error instanceof Error) {
         setAuthError(error.message);
@@ -148,7 +172,11 @@ export default function Home() {
       localStorage.setItem("affiliateai_token", data.access_token);
       setToken(data.access_token);
       setUser(data.user);
-      await loadHistory();
+
+      await Promise.all([
+        loadHistory(data.access_token),
+        loadDashboard(data.access_token),
+      ]);
     } catch (error) {
       if (error instanceof Error) {
         setAuthError(error.message);
@@ -176,11 +204,16 @@ export default function Home() {
 
       setToken(savedToken);
       setUser(data);
-      await loadHistory();
+
+      await Promise.all([
+        loadHistory(savedToken),
+        loadDashboard(savedToken),
+      ]);
     } catch {
       localStorage.removeItem("affiliateai_token");
       setToken("");
       setUser(null);
+      setDashboard(null);
     }
   }
 
@@ -190,13 +223,52 @@ export default function Home() {
     setUser(null);
     setResult(null);
     setHistory([]);
+    setDashboard(null);
   }
 
-  async function loadHistory() {
-    setLoadingHistory(true);
+  async function loadDashboard(authToken?: string) {
+    const activeToken = authToken || token;
+
+    if (!activeToken) {
+      setDashboard(null);
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_URL}/api/product-hunter/history`);
+      const response = await fetch(`${API_URL}/api/dashboard/metrics`, {
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar dashboard.");
+      }
+
+      const data: DashboardMetrics = await response.json();
+      setDashboard(data);
+    } catch {
+      setDashboard(null);
+    }
+  }
+
+  async function loadHistory(authToken?: string) {
+    setLoadingHistory(true);
+
+    const activeToken = authToken || token;
+
+    if (!activeToken) {
+      setHistory([]);
+      setLoadingHistory(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/product-hunter/history`, {
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Erro ao carregar histórico.");
@@ -221,7 +293,7 @@ export default function Home() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           niche,
@@ -243,7 +315,11 @@ export default function Home() {
 
       const data = await response.json();
       setResult(data);
-      await loadHistory();
+
+      await Promise.all([
+        loadHistory(token),
+        loadDashboard(token),
+      ]);
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -311,7 +387,7 @@ export default function Home() {
                   Nome
                   <input
                     value={authName}
-                    onChange={(e) => setAuthName(e.target.value)}
+                    onChange={(event) => setAuthName(event.target.value)}
                   />
                 </label>
               )}
@@ -320,7 +396,7 @@ export default function Home() {
                 Email
                 <input
                   value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
+                  onChange={(event) => setAuthEmail(event.target.value)}
                 />
               </label>
 
@@ -329,7 +405,7 @@ export default function Home() {
                 <input
                   type="password"
                   value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
+                  onChange={(event) => setAuthPassword(event.target.value)}
                 />
               </label>
 
@@ -380,6 +456,50 @@ export default function Home() {
           com agentes inteligentes para marketing de afiliados.
         </p>
 
+        <section className="metricsGrid">
+          <article className="metricCard">
+            <span>Total de análises</span>
+            <strong>{dashboard?.total_analyses ?? 0}</strong>
+            <small>Análises feitas na sua conta</small>
+          </article>
+
+          <article className="metricCard">
+            <span>Score médio</span>
+            <strong>{dashboard?.average_score ?? 0}</strong>
+            <small>Média das oportunidades analisadas</small>
+          </article>
+
+          <article className="metricCard">
+            <span>Boas oportunidades</span>
+            <strong>{dashboard?.good_opportunities ?? 0}</strong>
+            <small>Produtos com score acima de 70</small>
+          </article>
+
+          <article className="metricCard">
+            <span>Melhor oportunidade</span>
+            <strong className="metricText">
+              {dashboard?.best_opportunity?.product_name ?? "Nenhuma"}
+            </strong>
+            <small>
+              {dashboard?.best_opportunity
+                ? `Score ${dashboard.best_opportunity.final_score}`
+                : "Faça uma análise para descobrir"}
+            </small>
+          </article>
+
+          <article className="metricCard wide">
+            <span>Última análise</span>
+            <strong className="metricText">
+              {dashboard?.last_analysis?.product_name ?? "Nenhuma análise ainda"}
+            </strong>
+            <small>
+              {dashboard?.last_analysis
+                ? `${dashboard.last_analysis.decision} · Score ${dashboard.last_analysis.final_score}`
+                : "Seu histórico aparecerá aqui"}
+            </small>
+          </article>
+        </section>
+
         <div className="productHunterLayout">
           <section className="formPanel">
             <div className="panelHeader">
@@ -390,14 +510,14 @@ export default function Home() {
             <div className="formGrid">
               <label>
                 Nicho
-                <input value={niche} onChange={(e) => setNiche(e.target.value)} />
+                <input value={niche} onChange={(event) => setNiche(event.target.value)} />
               </label>
 
               <label>
                 Produto
                 <input
                   value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
+                  onChange={(event) => setProductName(event.target.value)}
                 />
               </label>
 
@@ -405,7 +525,7 @@ export default function Home() {
                 Público-alvo
                 <input
                   value={targetAudience}
-                  onChange={(e) => setTargetAudience(e.target.value)}
+                  onChange={(event) => setTargetAudience(event.target.value)}
                 />
               </label>
 
@@ -413,7 +533,7 @@ export default function Home() {
                 Marketplace
                 <select
                   value={marketplace}
-                  onChange={(e) => setMarketplace(e.target.value)}
+                  onChange={(event) => setMarketplace(event.target.value)}
                 >
                   <option value="shopee">Shopee</option>
                   <option value="mercado_livre">Mercado Livre</option>
@@ -429,7 +549,7 @@ export default function Home() {
                 Canal principal
                 <select
                   value={mainChannel}
-                  onChange={(e) => setMainChannel(e.target.value)}
+                  onChange={(event) => setMainChannel(event.target.value)}
                 >
                   <option value="tiktok">TikTok</option>
                   <option value="instagram">Instagram</option>
@@ -446,7 +566,7 @@ export default function Home() {
                 <input
                   type="number"
                   value={averagePrice}
-                  onChange={(e) => setAveragePrice(e.target.value)}
+                  onChange={(event) => setAveragePrice(event.target.value)}
                 />
               </label>
 
@@ -455,7 +575,7 @@ export default function Home() {
                 <input
                   type="number"
                   value={commissionPercent}
-                  onChange={(e) => setCommissionPercent(e.target.value)}
+                  onChange={(event) => setCommissionPercent(event.target.value)}
                 />
               </label>
 
@@ -464,7 +584,7 @@ export default function Home() {
                 <input
                   type="number"
                   value={estimatedCompetition}
-                  onChange={(e) => setEstimatedCompetition(e.target.value)}
+                  onChange={(event) => setEstimatedCompetition(event.target.value)}
                 />
               </label>
 
@@ -473,7 +593,7 @@ export default function Home() {
                 <input
                   type="number"
                   value={trendSignal}
-                  onChange={(e) => setTrendSignal(e.target.value)}
+                  onChange={(event) => setTrendSignal(event.target.value)}
                 />
               </label>
             </div>

@@ -1,12 +1,16 @@
 :root {
   --bg: #020403;
-  --panel: rgba(8, 20, 13, 0.88);
+  --bg-2: #061109;
+  --panel: rgba(7, 18, 11, 0.86);
+  --panel-2: rgba(10, 28, 16, 0.72);
   --green: #39ff14;
-  --green-soft: rgba(57, 255, 20, 0.14);
-  --green-border: rgba(57, 255, 20, 0.36);
+  --green-2: #9dff7a;
+  --green-soft: rgba(57, 255, 20, 0.12);
+  --green-border: rgba(57, 255, 20, 0.34);
   --text: #ecffee;
-  --muted: #9fbea4;
+  --muted: #93aa99;
   --danger: #ff5f5f;
+  --shadow: rgba(57, 255, 20, 0.18);
 }
 
 * {
@@ -17,9 +21,13 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family:
+    Inter,
+    Arial,
+    Helvetica,
+    sans-serif;
 }
 
 body {
@@ -32,42 +40,87 @@ select {
   font-family: inherit;
 }
 
+button {
+  user-select: none;
+}
+
+::selection {
+  background: var(--green);
+  color: #001702;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020403;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(57, 255, 20, 0.35);
+  border-radius: 999px;
+}
+
 .page {
   position: relative;
   min-height: 100vh;
-  padding: 42px 22px 70px;
+  padding: 34px 22px 80px;
   background:
-    radial-gradient(circle at 20% 10%, rgba(57, 255, 20, 0.24), transparent 28%),
-    radial-gradient(circle at 80% 20%, rgba(57, 255, 20, 0.14), transparent 24%),
-    linear-gradient(180deg, #020403, #061109 58%, #020403);
+    radial-gradient(circle at 12% 8%, rgba(57, 255, 20, 0.24), transparent 28%),
+    radial-gradient(circle at 88% 10%, rgba(57, 255, 20, 0.14), transparent 26%),
+    radial-gradient(circle at 50% 100%, rgba(57, 255, 20, 0.12), transparent 34%),
+    linear-gradient(180deg, #020403 0%, #061109 50%, #020403 100%);
+}
+
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(57, 255, 20, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57, 255, 20, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 75%);
+}
+
+.page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, rgba(57, 255, 20, 0.08), transparent 45%);
 }
 
 .gridGlow {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  opacity: 0.7;
   background-image:
     linear-gradient(rgba(57, 255, 20, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(57, 255, 20, 0.055) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, black, transparent 76%);
-  animation: gridMove 12s linear infinite;
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+  animation: gridMove 16s linear infinite;
+}
+
+.hero,
+.authShell {
+  position: relative;
+  z-index: 2;
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
 .hero {
-  position: relative;
-  z-index: 1;
-  max-width: 1180px;
-  margin: 0 auto;
   text-align: center;
 }
 
 .authShell {
-  position: relative;
-  z-index: 1;
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 46px 0;
+  max-width: 760px;
+  padding: 50px 0;
   text-align: center;
 }
 
@@ -75,16 +128,18 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 11px 17px;
   border: 1px solid var(--green-border);
   border-radius: 999px;
   background: rgba(57, 255, 20, 0.08);
   color: var(--green);
-  box-shadow: 0 0 28px rgba(57, 255, 20, 0.18);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  box-shadow:
+    0 0 30px rgba(57, 255, 20, 0.18),
+    inset 0 0 18px rgba(57, 255, 20, 0.04);
   font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .pulse {
@@ -92,100 +147,155 @@ select {
   height: 9px;
   border-radius: 999px;
   background: var(--green);
-  box-shadow: 0 0 18px var(--green);
-  animation: pulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 20px var(--green);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 h1 {
-  margin: 28px auto 18px;
-  font-size: clamp(52px, 9vw, 118px);
-  line-height: 0.9;
-  letter-spacing: -0.08em;
-  text-shadow: 0 0 36px rgba(57, 255, 20, 0.22);
+  margin: 24px auto 18px;
+  font-size: clamp(56px, 9vw, 116px);
+  line-height: 0.88;
+  letter-spacing: -0.075em;
+  color: #f5fff6;
+  text-shadow:
+    0 0 18px rgba(57, 255, 20, 0.18),
+    0 0 60px rgba(57, 255, 20, 0.12);
 }
 
 h1 span {
   color: var(--green);
+  text-shadow:
+    0 0 22px rgba(57, 255, 20, 0.45),
+    0 0 70px rgba(57, 255, 20, 0.25);
 }
 
 .subtitle {
   max-width: 780px;
   margin: 0 auto;
   color: var(--muted);
-  font-size: clamp(17px, 2vw, 23px);
-  line-height: 1.55;
+  font-size: clamp(16px, 2vw, 22px);
+  line-height: 1.6;
 }
 
-/* AUTH */
+/* LOGIN */
+
+.authPanel,
+.formPanel,
+.resultPanel,
+.historyPanel,
+.metricCard,
+.topBar {
+  border: 1px solid var(--green-border);
+  background:
+    linear-gradient(180deg, rgba(12, 32, 18, 0.92), rgba(4, 12, 7, 0.88));
+  box-shadow:
+    0 0 38px rgba(57, 255, 20, 0.13),
+    inset 0 0 46px rgba(57, 255, 20, 0.035);
+  backdrop-filter: blur(16px);
+}
 
 .authPanel {
   width: min(520px, 100%);
   margin: 38px auto 0;
-  border: 1px solid var(--green-border);
-  border-radius: 24px;
-  background: var(--panel);
-  box-shadow:
-    0 0 42px rgba(57, 255, 20, 0.16),
-    inset 0 0 40px rgba(57, 255, 20, 0.04);
+  border-radius: 28px;
   overflow: hidden;
   text-align: left;
-  backdrop-filter: blur(12px);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 17px 20px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.22);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(57, 255, 20, 0.04);
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 20px var(--green);
 }
 
 .authTabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  padding: 16px;
-  gap: 10px;
+  padding: 18px 18px 8px;
+  gap: 12px;
 }
 
 .authTabs button {
-  border: 1px solid var(--green-border);
-  border-radius: 14px;
-  padding: 12px;
-  background: rgba(57, 255, 20, 0.04);
+  border: 1px solid rgba(57, 255, 20, 0.24);
+  border-radius: 15px;
+  padding: 13px 12px;
+  background: rgba(0, 0, 0, 0.28);
   color: var(--muted);
-  font-weight: 900;
+  font-weight: 950;
   cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.authTabs button:hover {
+  color: var(--green);
+  border-color: var(--green);
 }
 
 .authTabs button.active {
   background: var(--green);
   color: #001702;
-  box-shadow: 0 0 24px rgba(57, 255, 20, 0.28);
+  border-color: var(--green);
+  box-shadow: 0 0 26px rgba(57, 255, 20, 0.32);
 }
 
 .authForm {
-  padding: 0 22px 22px;
+  padding: 14px 22px 24px;
   display: grid;
   gap: 16px;
 }
 
-.authForm label {
+.authForm label,
+.formGrid label {
   display: flex;
   flex-direction: column;
   gap: 8px;
   color: var(--green);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 950;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
-.authForm input {
+.authForm input,
+.formGrid input,
+.formGrid select {
   width: 100%;
-  border: 1px solid var(--green-border);
+  border: 1px solid rgba(57, 255, 20, 0.24);
   outline: none;
-  border-radius: 12px;
-  padding: 13px 14px;
-  background: rgba(0, 0, 0, 0.46);
+  border-radius: 14px;
+  padding: 14px 15px;
+  background: rgba(0, 0, 0, 0.42);
   color: var(--text);
   font-size: 15px;
+  transition: 0.18s ease;
 }
 
-.authForm input:focus {
+.formGrid select option {
+  background: #061109;
+  color: var(--text);
+}
+
+.authForm input:focus,
+.formGrid input:focus,
+.formGrid select:focus {
   border-color: var(--green);
-  box-shadow: 0 0 18px rgba(57, 255, 20, 0.24);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.08), 0 0 18px rgba(57, 255, 20, 0.16);
 }
 
 .authButton {
@@ -198,22 +308,20 @@ h1 span {
 
 .topBar {
   width: 100%;
-  margin: 0 auto 30px;
-  border: 1px solid var(--green-border);
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: rgba(8, 20, 13, 0.72);
+  margin: 0 auto 32px;
+  border-radius: 20px;
+  padding: 15px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   text-align: left;
-  box-shadow: 0 0 28px rgba(57, 255, 20, 0.1);
 }
 
 .topBar strong {
   display: block;
   color: var(--green);
-  font-size: 16px;
+  font-size: 17px;
+  text-transform: capitalize;
 }
 
 .topBar span {
@@ -224,27 +332,103 @@ h1 span {
 }
 
 .topBar button {
-  border: 1px solid var(--green-border);
-  border-radius: 12px;
-  padding: 10px 14px;
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  border-radius: 14px;
+  padding: 11px 16px;
   background: rgba(57, 255, 20, 0.08);
   color: var(--green);
-  font-weight: 900;
+  font-weight: 950;
   cursor: pointer;
   transition: 0.2s ease;
 }
 
 .topBar button:hover {
   transform: translateY(-2px);
-  border-color: var(--green);
-  box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+  background: var(--green);
+  color: #001702;
+  box-shadow: 0 0 22px rgba(57, 255, 20, 0.28);
 }
 
-/* PANELS */
+/* DASHBOARD CARDS */
+
+.metricsGrid {
+  width: 100%;
+  margin: 40px auto 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  text-align: left;
+}
+
+.metricCard {
+  border-radius: 24px;
+  padding: 20px;
+  min-height: 145px;
+  position: relative;
+  overflow: hidden;
+  transition: 0.2s ease;
+}
+
+.metricCard::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: radial-gradient(circle at 20% 0%, rgba(57, 255, 20, 0.16), transparent 34%);
+  pointer-events: none;
+}
+
+.metricCard:hover {
+  transform: translateY(-4px);
+  border-color: var(--green);
+  box-shadow:
+    0 0 36px rgba(57, 255, 20, 0.2),
+    inset 0 0 46px rgba(57, 255, 20, 0.05);
+}
+
+.metricCard.wide {
+  grid-column: span 4;
+  min-height: 115px;
+}
+
+.metricCard span {
+  position: relative;
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metricCard strong {
+  position: relative;
+  display: block;
+  margin-top: 12px;
+  color: var(--green);
+  font-size: 42px;
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(57, 255, 20, 0.3);
+}
+
+.metricCard strong.metricText {
+  font-size: 23px;
+  line-height: 1.22;
+  text-transform: capitalize;
+}
+
+.metricCard small {
+  position: relative;
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* MAIN LAYOUT */
 
 .productHunterLayout {
   width: 100%;
-  margin: 44px auto 0;
+  margin: 28px auto 0;
   display: grid;
   grid-template-columns: 0.95fr 1.05fr;
   gap: 22px;
@@ -254,105 +438,58 @@ h1 span {
 .formPanel,
 .resultPanel,
 .historyPanel {
-  border: 1px solid var(--green-border);
-  border-radius: 24px;
-  background: var(--panel);
-  box-shadow:
-    0 0 40px rgba(57, 255, 20, 0.14),
-    inset 0 0 40px rgba(57, 255, 20, 0.04);
+  border-radius: 28px;
   overflow: hidden;
-  backdrop-filter: blur(12px);
 }
-
-.panelHeader {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--green-border);
-  color: var(--green);
-  font-weight: 900;
-  letter-spacing: 0.04em;
-}
-
-.dot {
-  width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: var(--green);
-  box-shadow: 0 0 18px var(--green);
-}
-
-/* FORM */
 
 .formGrid {
-  padding: 22px;
+  padding: 24px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.formGrid label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  gap: 17px;
 }
 
 .formGrid label.full {
   grid-column: 1 / -1;
 }
 
-.formGrid input,
-.formGrid select {
-  width: 100%;
-  border: 1px solid var(--green-border);
-  outline: none;
-  border-radius: 12px;
-  padding: 13px 14px;
-  background: rgba(0, 0, 0, 0.46);
-  color: var(--text);
-  font-size: 15px;
-}
-
-.formGrid input:focus,
-.formGrid select:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 18px rgba(57, 255, 20, 0.24);
-}
-
-/* BUTTONS */
-
 .primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   padding: 15px 22px;
-  border-radius: 14px;
-  font-weight: 900;
+  border-radius: 15px;
+  font-weight: 950;
   transition: 0.2s ease;
   color: #001702;
-  background: var(--green);
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.35);
+  background: linear-gradient(135deg, var(--green), var(--green-2));
+  box-shadow:
+    0 0 32px rgba(57, 255, 20, 0.34),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22);
 }
 
 .primaryButton:hover {
   transform: translateY(-3px);
+  box-shadow:
+    0 0 40px rgba(57, 255, 20, 0.46),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22);
 }
 
 .analyzeButton {
-  display: block;
-  width: calc(100% - 44px);
-  margin: 0 22px 22px;
+  width: calc(100% - 48px);
+  margin: 0 24px 24px;
   border: none;
   cursor: pointer;
   font-size: 15px;
 }
 
 .errorMessage {
-  margin: 0 22px 22px;
+  margin: 0 24px 24px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 95, 95, 0.3);
+  border-radius: 14px;
+  background: rgba(255, 95, 95, 0.08);
   color: var(--danger);
   font-weight: 800;
   line-height: 1.5;
@@ -361,98 +498,104 @@ h1 span {
 /* RESULT */
 
 .emptyState {
-  padding: 34px;
+  padding: 40px;
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.7;
+  text-align: center;
 }
 
 .resultContent {
-  padding: 24px;
+  padding: 26px;
 }
 
 .scoreCircle {
-  width: 128px;
-  height: 128px;
+  width: 138px;
+  height: 138px;
   border: 2px solid var(--green);
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 18px;
+  margin: 0 auto 20px;
+  background:
+    radial-gradient(circle, rgba(57, 255, 20, 0.13), transparent 62%),
+    rgba(0, 0, 0, 0.25);
   box-shadow:
-    0 0 34px rgba(57, 255, 20, 0.34),
-    inset 0 0 28px rgba(57, 255, 20, 0.14);
+    0 0 38px rgba(57, 255, 20, 0.36),
+    inset 0 0 34px rgba(57, 255, 20, 0.12);
   color: var(--green);
 }
 
 .scoreCircle span {
-  font-size: 46px;
+  font-size: 50px;
   font-weight: 950;
 }
 
 .scoreCircle small {
   margin-left: 4px;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .resultContent h2 {
   text-align: center;
   margin: 0;
   color: var(--green);
-  font-size: 28px;
-  text-shadow: 0 0 22px rgba(57, 255, 20, 0.22);
+  font-size: 29px;
+  text-shadow: 0 0 24px rgba(57, 255, 20, 0.25);
 }
 
 .resultProduct {
   text-align: center;
   color: var(--muted);
-  margin: 8px 0 22px;
+  margin: 9px 0 24px;
+  text-transform: capitalize;
 }
 
 .scoreGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 22px;
+  gap: 11px;
+  margin-bottom: 24px;
 }
 
 .scoreGrid div {
-  border: 1px solid var(--green-border);
-  border-radius: 16px;
-  padding: 14px 10px;
-  background: rgba(57, 255, 20, 0.06);
+  border: 1px solid rgba(57, 255, 20, 0.22);
+  border-radius: 17px;
+  padding: 15px 10px;
+  background: rgba(57, 255, 20, 0.055);
   text-align: center;
 }
 
 .scoreGrid strong {
   display: block;
   color: var(--green);
-  font-size: 24px;
+  font-size: 25px;
 }
 
 .scoreGrid span {
   display: block;
   color: var(--muted);
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
 .strategyBlock {
-  border-top: 1px solid rgba(57, 255, 20, 0.18);
-  padding-top: 16px;
-  margin-top: 16px;
+  border-top: 1px solid rgba(57, 255, 20, 0.17);
+  padding-top: 17px;
+  margin-top: 17px;
 }
 
 .strategyBlock h3 {
-  margin: 0 0 8px;
+  margin: 0 0 9px;
   color: var(--green);
+  font-size: 16px;
 }
 
 .strategyBlock p,
 .strategyBlock li {
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .strategyBlock ul {
@@ -464,7 +607,7 @@ h1 span {
 
 .historyPanel {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   margin: 24px auto 0;
   text-align: left;
@@ -472,15 +615,16 @@ h1 span {
 
 .historyEmpty {
   margin: 0;
-  padding: 24px;
+  padding: 26px;
   color: var(--muted);
   line-height: 1.6;
+  text-align: center;
 }
 
 .historyList {
-  padding: 18px;
+  padding: 20px;
   display: grid;
-  gap: 12px;
+  gap: 13px;
 }
 
 .historyCard {
@@ -488,23 +632,24 @@ h1 span {
   justify-content: space-between;
   gap: 18px;
   align-items: center;
-  border: 1px solid rgba(57, 255, 20, 0.18);
-  border-radius: 18px;
-  padding: 16px;
-  background: rgba(57, 255, 20, 0.055);
+  border: 1px solid rgba(57, 255, 20, 0.19);
+  border-radius: 20px;
+  padding: 17px;
+  background: rgba(57, 255, 20, 0.052);
   transition: 0.2s ease;
 }
 
 .historyCard:hover {
   transform: translateY(-3px);
   border-color: var(--green);
-  box-shadow: 0 0 24px rgba(57, 255, 20, 0.14);
+  box-shadow: 0 0 25px rgba(57, 255, 20, 0.15);
 }
 
 .historyCard strong {
   display: block;
   color: var(--green);
   font-size: 16px;
+  text-transform: capitalize;
 }
 
 .historyCard span {
@@ -515,12 +660,12 @@ h1 span {
 }
 
 .historyScore {
-  min-width: 160px;
+  min-width: 170px;
   text-align: right;
 }
 
 .historyScore strong {
-  font-size: 28px;
+  font-size: 30px;
 }
 
 /* ANIMATIONS */
@@ -528,13 +673,13 @@ h1 span {
 @keyframes pulse {
   0%,
   100% {
-    opacity: 0.5;
+    opacity: 0.55;
     transform: scale(0.9);
   }
 
   50% {
     opacity: 1;
-    transform: scale(1.2);
+    transform: scale(1.25);
   }
 }
 
@@ -544,30 +689,33 @@ h1 span {
   }
 
   to {
-    transform: translateY(44px);
+    transform: translateY(48px);
   }
 }
 
 /* RESPONSIVE */
 
-@media (max-width: 980px) {
+@media (max-width: 1060px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metricCard.wide {
+    grid-column: span 2;
+  }
+
   .productHunterLayout {
     grid-template-columns: 1fr;
   }
-
-  .scoreGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
-@media (max-width: 720px) {
-  .historyCard {
-    align-items: flex-start;
-    flex-direction: column;
+@media (max-width: 760px) {
+  .page {
+    padding: 26px 14px 60px;
   }
 
-  .historyScore {
-    text-align: left;
+  h1 {
+    font-size: clamp(48px, 16vw, 76px);
   }
 
   .topBar {
@@ -575,18 +723,50 @@ h1 span {
     flex-direction: column;
     gap: 14px;
   }
-}
-
-@media (max-width: 620px) {
-  .page {
-    padding: 30px 14px 50px;
-  }
 
   .formGrid {
     grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .analyzeButton {
+    width: calc(100% - 36px);
+    margin: 0 18px 18px;
   }
 
   .scoreGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .historyCard {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .historyScore {
+    min-width: 0;
+    text-align: left;
+  }
+}
+
+@media (max-width: 560px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricCard.wide {
+    grid-column: span 1;
+  }
+
+  .scoreGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .authPanel {
+    border-radius: 22px;
+  }
+
+  .authTabs {
     grid-template-columns: 1fr;
   }
 }
