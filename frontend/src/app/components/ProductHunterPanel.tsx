@@ -12,6 +12,15 @@ type AnalysisResult = Record<string, any>;
 
 type HistoryItem = Record<string, any>;
 
+type UserPreferences = {
+  defaultNiche?: string;
+  defaultChannel?: string;
+  defaultCampaignStyle?: string;
+  defaultBudgetStyle?: string;
+  defaultMarketplace?: string;
+  language?: string;
+};
+
 export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
   const [productName, setProductName] = useState("escova secadora");
   const [niche, setNiche] = useState("beleza");
@@ -29,11 +38,64 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
+    loadSavedPreferences();
     loadHistory();
   }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
+  }
+
+  function loadSavedPreferences() {
+    const savedPreferences = localStorage.getItem("affiliateai_preferences");
+
+    if (!savedPreferences) {
+      return;
+    }
+
+    try {
+      const preferences = JSON.parse(savedPreferences) as UserPreferences;
+
+      if (preferences.defaultNiche) {
+        setNiche(preferences.defaultNiche);
+
+        if (preferences.defaultNiche === "beleza") {
+          setProductName("escova secadora");
+          setAveragePrice("119.90");
+          setCommissionPercent("12");
+        } else if (preferences.defaultNiche === "fitness") {
+          setProductName("mini elástico para treino");
+          setAveragePrice("39.90");
+          setCommissionPercent("12");
+        } else if (preferences.defaultNiche === "automotivo") {
+          setProductName("aspirador portátil automotivo");
+          setAveragePrice("99.90");
+          setCommissionPercent("11");
+        } else if (preferences.defaultNiche === "casa") {
+          setProductName("mini processador elétrico");
+          setAveragePrice("89.90");
+          setCommissionPercent("12");
+        } else if (preferences.defaultNiche === "pet") {
+          setProductName("escova removedora de pelos pet");
+          setAveragePrice("49.90");
+          setCommissionPercent("10");
+        } else {
+          setProductName(`produto tendência de ${preferences.defaultNiche}`);
+          setAveragePrice("79.90");
+          setCommissionPercent("10");
+        }
+      }
+
+      if (preferences.defaultMarketplace) {
+        setMarketplace(preferences.defaultMarketplace);
+      }
+
+      if (preferences.defaultChannel) {
+        setTrafficChannel(preferences.defaultChannel);
+      }
+    } catch {
+      return;
+    }
   }
 
   function getFinalScore(data: AnalysisResult | null) {
@@ -158,6 +220,8 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
 
       setResult(data);
       await loadHistory();
+
+      window.dispatchEvent(new Event("product-hunter-history-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -217,7 +281,8 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
           <h2>Caçador de Produtos</h2>
           <p>
             Analise produtos para afiliados com score, demanda, concorrência,
-            comissão, risco e estratégia de venda.
+            comissão, risco e estratégia de venda. Agora ele também puxa nicho,
+            marketplace e canal salvos nas Configurações.
           </p>
         </div>
 
@@ -440,9 +505,7 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
         </div>
 
         {history.length === 0 ? (
-          <div className="hunterEmpty">
-            Nenhuma análise encontrada ainda.
-          </div>
+          <div className="hunterEmpty">Nenhuma análise encontrada ainda.</div>
         ) : (
           <div className="hunterHistoryList">
             {history.map((item) => {

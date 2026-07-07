@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -9,6 +9,15 @@ type ContentGeneratorPanelProps = {
 };
 
 type ContentResult = Record<string, any>;
+
+type UserPreferences = {
+  defaultNiche?: string;
+  defaultChannel?: string;
+  defaultCampaignStyle?: string;
+  defaultBudgetStyle?: string;
+  defaultMarketplace?: string;
+  language?: string;
+};
 
 export default function ContentGeneratorPanel({
   token,
@@ -26,8 +35,55 @@ export default function ContentGeneratorPanel({
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<ContentResult | null>(null);
 
+  useEffect(() => {
+    loadSavedPreferences();
+  }, [token]);
+
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
+  }
+
+  function loadSavedPreferences() {
+    const savedPreferences = localStorage.getItem("affiliateai_preferences");
+
+    if (!savedPreferences) {
+      return;
+    }
+
+    try {
+      const preferences = JSON.parse(savedPreferences) as UserPreferences;
+
+      if (preferences.defaultNiche) {
+        setNiche(preferences.defaultNiche);
+        setTargetAudience(
+          `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
+        );
+
+        if (preferences.defaultNiche === "beleza") {
+          setProductName("escova secadora");
+        } else if (preferences.defaultNiche === "fitness") {
+          setProductName("mini elástico para treino");
+        } else if (preferences.defaultNiche === "automotivo") {
+          setProductName("aspirador portátil automotivo");
+        } else if (preferences.defaultNiche === "casa") {
+          setProductName("mini processador elétrico");
+        } else if (preferences.defaultNiche === "pet") {
+          setProductName("escova removedora de pelos pet");
+        } else {
+          setProductName(`produto tendência de ${preferences.defaultNiche}`);
+        }
+      }
+
+      if (preferences.defaultChannel) {
+        setPlatform(preferences.defaultChannel);
+      }
+
+      if (preferences.defaultCampaignStyle) {
+        setTone(preferences.defaultCampaignStyle);
+      }
+    } catch {
+      return;
+    }
   }
 
   function getValue(keys: string[], fallback: string) {
@@ -161,7 +217,14 @@ export default function ContentGeneratorPanel({
 
   const hashtags = getList(
     ["hashtags", "content.hashtags", "generated_content.hashtags"],
-    ["#afiliados", "#marketingdigital", "#achadinhos", "#oferta", `#${niche}`]
+    [
+      "#afiliados",
+      "#marketingdigital",
+      "#achadinhos",
+      "#oferta",
+      `#${niche.replace(" ", "")}`,
+      `#${productName.replace(" ", "")}`,
+    ]
   );
 
   const adVariations = getList(
@@ -184,7 +247,8 @@ export default function ContentGeneratorPanel({
           <p>
             Crie um pacote completo de conteúdo para afiliados com headline,
             copy, legenda, roteiro, CTA, hashtags, WhatsApp e variações de
-            anúncio.
+            anúncio. Agora ele também puxa nicho, canal e estilo salvos nas
+            Configurações.
           </p>
 
           <div className="contentHeroStats">
