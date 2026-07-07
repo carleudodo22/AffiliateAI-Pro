@@ -1,10 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+type AuthResponse = {
+  access_token: string;
+  token_type: string;
+  user: User;
+};
+
 type ProductHunterResponse = {
+  id: number | null;
   agent: string;
   niche: string;
   product_name: string;
@@ -28,7 +43,28 @@ type ProductHunterResponse = {
   };
 };
 
+type HistoryItem = {
+  id: number;
+  niche: string;
+  product_name: string;
+  marketplace: string;
+  main_channel: string;
+  decision: string;
+  final_score: number;
+  created_at: string;
+};
+
 export default function Home() {
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [token, setToken] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+
+  const [authName, setAuthName] = useState("Kauet");
+  const [authEmail, setAuthEmail] = useState("teste456@email.com");
+  const [authPassword, setAuthPassword] = useState("123456");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   const [niche, setNiche] = useState("beleza");
   const [productName, setProductName] = useState("escova secadora");
   const [targetAudience, setTargetAudience] = useState(
@@ -42,8 +78,138 @@ export default function Home() {
   const [trendSignal, setTrendSignal] = useState("82");
 
   const [result, setResult] = useState<ProductHunterResponse | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  async function register() {
+    setAuthLoading(true);
+    setAuthError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: authName,
+          email: authEmail,
+          password: authPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
+      const data: AuthResponse = await response.json();
+
+      localStorage.setItem("affiliateai_token", data.access_token);
+      setToken(data.access_token);
+      setUser(data.user);
+      await loadHistory();
+    } catch (error) {
+      if (error instanceof Error) {
+        setAuthError(error.message);
+      } else {
+        setAuthError("Erro ao cadastrar usuário.");
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function login() {
+    setAuthLoading(true);
+    setAuthError("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: authEmail,
+          password: authPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+
+      const data: AuthResponse = await response.json();
+
+      localStorage.setItem("affiliateai_token", data.access_token);
+      setToken(data.access_token);
+      setUser(data.user);
+      await loadHistory();
+    } catch (error) {
+      if (error instanceof Error) {
+        setAuthError(error.message);
+      } else {
+        setAuthError("Erro ao fazer login.");
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function loadCurrentUser(savedToken: string) {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${savedToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Sessão inválida.");
+      }
+
+      const data: User = await response.json();
+
+      setToken(savedToken);
+      setUser(data);
+      await loadHistory();
+    } catch {
+      localStorage.removeItem("affiliateai_token");
+      setToken("");
+      setUser(null);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("affiliateai_token");
+    setToken("");
+    setUser(null);
+    setResult(null);
+    setHistory([]);
+  }
+
+  async function loadHistory() {
+    setLoadingHistory(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/product-hunter/history`);
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar histórico.");
+      }
+
+      const data = await response.json();
+      setHistory(data);
+    } catch {
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
 
   async function analyzeProduct() {
     setLoading(true);
@@ -55,6 +221,7 @@ export default function Home() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           niche,
@@ -70,18 +237,119 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error("Erro ao analisar produto.");
+        const errorText = await response.text();
+        throw new Error(`Backend respondeu erro ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
       setResult(data);
-    } catch {
-      setErrorMessage(
-        "Não foi possível conectar com o backend. Confirme se http://localhost:8000 está rodando."
-      );
+      await loadHistory();
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro desconhecido ao conectar com o backend.");
+      }
     } finally {
       setLoading(false);
     }
+  }
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem("affiliateai_token");
+
+    if (savedToken) {
+      loadCurrentUser(savedToken);
+    }
+  }, []);
+
+  if (!user) {
+    return (
+      <main className="page">
+        <div className="gridGlow" />
+
+        <section className="authShell">
+          <div className="badge">
+            <span className="pulse" />
+            AI Affiliate Marketing SaaS
+          </div>
+
+          <h1>
+            AffiliateAI <span>Pro</span>
+          </h1>
+
+          <p className="subtitle">
+            Entre na sua conta para acessar o painel inteligente de análise de
+            oportunidades para afiliados.
+          </p>
+
+          <div className="authPanel">
+            <div className="panelHeader">
+              <span className="dot" />
+              {authMode === "login" ? "Login" : "Criar Conta"}
+            </div>
+
+            <div className="authTabs">
+              <button
+                className={authMode === "login" ? "active" : ""}
+                onClick={() => setAuthMode("login")}
+              >
+                Login
+              </button>
+
+              <button
+                className={authMode === "register" ? "active" : ""}
+                onClick={() => setAuthMode("register")}
+              >
+                Cadastro
+              </button>
+            </div>
+
+            <div className="authForm">
+              {authMode === "register" && (
+                <label>
+                  Nome
+                  <input
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                  />
+                </label>
+              )}
+
+              <label>
+                Email
+                <input
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                />
+              </label>
+
+              <label>
+                Senha
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                />
+              </label>
+
+              <button
+                className="primaryButton authButton"
+                onClick={authMode === "login" ? login : register}
+              >
+                {authLoading
+                  ? "Processando..."
+                  : authMode === "login"
+                    ? "Entrar"
+                    : "Criar conta"}
+              </button>
+
+              {authError && <p className="errorMessage">{authError}</p>}
+            </div>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -89,6 +357,15 @@ export default function Home() {
       <div className="gridGlow" />
 
       <section className="hero">
+        <div className="topBar">
+          <div>
+            <strong>{user.name}</strong>
+            <span>{user.email}</span>
+          </div>
+
+          <button onClick={logout}>Sair</button>
+        </div>
+
         <div className="badge">
           <span className="pulse" />
           AI Affiliate Marketing SaaS
@@ -233,7 +510,7 @@ export default function Home() {
                 <h2>{result.decision}</h2>
 
                 <p className="resultProduct">
-                  {result.product_name} · {result.marketplace}
+                  #{result.id} · {result.product_name} · {result.marketplace}
                 </p>
 
                 <div className="scoreGrid">
@@ -286,6 +563,43 @@ export default function Home() {
             )}
           </section>
         </div>
+
+        <section className="historyPanel">
+          <div className="panelHeader">
+            <span className="dot" />
+            Histórico de Análises
+          </div>
+
+          {loadingHistory && <p className="historyEmpty">Carregando histórico...</p>}
+
+          {!loadingHistory && history.length === 0 && (
+            <p className="historyEmpty">
+              Nenhuma análise salva ainda. Faça uma análise para iniciar o histórico.
+            </p>
+          )}
+
+          {!loadingHistory && history.length > 0 && (
+            <div className="historyList">
+              {history.map((item) => (
+                <article className="historyCard" key={item.id}>
+                  <div>
+                    <strong>
+                      #{item.id} · {item.product_name}
+                    </strong>
+                    <span>
+                      {item.niche} · {item.marketplace} · {item.main_channel}
+                    </span>
+                  </div>
+
+                  <div className="historyScore">
+                    <strong>{item.final_score}</strong>
+                    <span>{item.decision}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
     </main>
   );
