@@ -8,6 +8,7 @@ from app.api.content_generator import router as content_generator_router
 from app.api.creative_image import router as creative_image_router
 from app.api.dashboard import router as dashboard_router
 from app.api.product_hunter import router as product_hunter_router
+from app.api.user_settings import router as user_settings_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import check_database_connection, engine
@@ -16,6 +17,7 @@ from app.models.content_generation import ContentGeneration
 from app.models.creative_image import CreativeImageGeneration
 from app.models.product_analysis import ProductAnalysis
 from app.models.user import User
+from app.models.user_settings import UserSettings
 
 
 app = FastAPI(
@@ -79,4 +81,5 @@ app.include_router(product_hunter_router)
 app.include_router(content_generator_router)
 app.include_router(creative_image_router)
 app.include_router(autopilot_router)
+app.include_router(user_settings_router)
 app.include_router(dashboard_router)

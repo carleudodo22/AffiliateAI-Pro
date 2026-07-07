@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 type SettingsPanelProps = {
   token: string;
   userName: string;
@@ -15,6 +17,19 @@ type UserPreferences = {
   defaultBudgetStyle: string;
   defaultMarketplace: string;
   language: string;
+};
+
+type UserSettingsResponse = {
+  id: number;
+  user_id: number;
+  default_niche: string;
+  default_channel: string;
+  default_campaign_style: string;
+  default_budget_style: string;
+  default_marketplace: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
 };
 
 const DEFAULT_PREFERENCES: UserPreferences = {
@@ -35,15 +50,49 @@ export default function SettingsPanel({
     useState<UserPreferences>(DEFAULT_PREFERENCES);
 
   const [savedMessage, setSavedMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
-    loadPreferences();
-  }, []);
+    loadPreferencesFromApi();
+  }, [token]);
 
-  function loadPreferences() {
+  function getToken() {
+    return token || localStorage.getItem("affiliateai_token") || "";
+  }
+
+  function mapApiToPreferences(data: UserSettingsResponse): UserPreferences {
+    return {
+      defaultNiche: data.default_niche,
+      defaultChannel: data.default_channel,
+      defaultCampaignStyle: data.default_campaign_style,
+      defaultBudgetStyle: data.default_budget_style,
+      defaultMarketplace: data.default_marketplace,
+      language: data.language,
+    };
+  }
+
+  function mapPreferencesToApiPayload(data: UserPreferences) {
+    return {
+      default_niche: data.defaultNiche,
+      default_channel: data.defaultChannel,
+      default_campaign_style: data.defaultCampaignStyle,
+      default_budget_style: data.defaultBudgetStyle,
+      default_marketplace: data.defaultMarketplace,
+      language: data.language,
+    };
+  }
+
+  function saveLocalCache(data: UserPreferences) {
+    localStorage.setItem("affiliateai_preferences", JSON.stringify(data));
+  }
+
+  function loadLocalCache() {
     const savedPreferences = localStorage.getItem("affiliateai_preferences");
 
     if (!savedPreferences) {
+      setPreferences(DEFAULT_PREFERENCES);
       return;
     }
 
@@ -59,6 +108,42 @@ export default function SettingsPanel({
     }
   }
 
+  async function loadPreferencesFromApi() {
+    setLoadingSettings(true);
+    setErrorMessage("");
+    setSavedMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        loadLocalCache();
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        loadLocalCache();
+        return;
+      }
+
+      const data: UserSettingsResponse = await response.json();
+      const mappedPreferences = mapApiToPreferences(data);
+
+      setPreferences(mappedPreferences);
+      saveLocalCache(mappedPreferences);
+    } catch {
+      loadLocalCache();
+    } finally {
+      setLoadingSettings(false);
+    }
+  }
+
   function updatePreference(key: keyof UserPreferences, value: string) {
     setPreferences((currentPreferences) => ({
       ...currentPreferences,
@@ -66,21 +151,98 @@ export default function SettingsPanel({
     }));
 
     setSavedMessage("");
+    setErrorMessage("");
   }
 
-  function savePreferences() {
-    localStorage.setItem(
-      "affiliateai_preferences",
-      JSON.stringify(preferences)
-    );
+  async function savePreferences() {
+    setSavingSettings(true);
+    setSavedMessage("");
+    setErrorMessage("");
 
-    setSavedMessage("Configurações salvas com sucesso.");
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para salvar configurações.");
+      }
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(mapPreferencesToApiPayload(preferences)),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: UserSettingsResponse = await response.json();
+      const mappedPreferences = mapApiToPreferences(data);
+
+      setPreferences(mappedPreferences);
+      saveLocalCache(mappedPreferences);
+
+      setSavedMessage("Configurações salvas no banco com sucesso.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao salvar configurações.");
+      }
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
-  function resetPreferences() {
-    localStorage.removeItem("affiliateai_preferences");
-    setPreferences(DEFAULT_PREFERENCES);
-    setSavedMessage("Configurações restauradas para o padrão.");
+  async function resetPreferences() {
+    setSavingSettings(true);
+    setSavedMessage("");
+    setErrorMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        localStorage.removeItem("affiliateai_preferences");
+        setPreferences(DEFAULT_PREFERENCES);
+        setSavedMessage("Configurações restauradas localmente.");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(mapPreferencesToApiPayload(DEFAULT_PREFERENCES)),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: UserSettingsResponse = await response.json();
+      const mappedPreferences = mapApiToPreferences(data);
+
+      setPreferences(mappedPreferences);
+      saveLocalCache(mappedPreferences);
+
+      setSavedMessage("Configurações restauradas para o padrão.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao restaurar configurações.");
+      }
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   function copyTokenPreview() {
@@ -98,15 +260,20 @@ export default function SettingsPanel({
           <h2>Central do SaaS</h2>
 
           <p>
-            Ajuste preferências padrão do AffiliateAI Pro, dados da conta,
-            canais principais, marketplace e estilo de campanha.
+            Ajuste preferências padrão do AffiliateAI Pro. Agora essas
+            configurações são salvas no banco por usuário e também mantidas em
+            cache local para alimentar os agentes.
           </p>
         </div>
 
         <div className="settingsStatus">
           <span>Status da sessão</span>
           <strong>{token ? "Autenticado" : "Sem token"}</strong>
-          <p>Sua conta está conectada ao painel local do AffiliateAI Pro.</p>
+          <p>
+            {loadingSettings
+              ? "Carregando preferências..."
+              : "Preferências sincronizadas com o sistema."}
+          </p>
         </div>
       </div>
 
@@ -133,8 +300,8 @@ export default function SettingsPanel({
             </div>
 
             <div>
-              <span>Token</span>
-              <strong>{token ? "Ativo" : "Ausente"}</strong>
+              <span>Fonte</span>
+              <strong>Banco + cache</strong>
             </div>
           </div>
 
@@ -150,6 +317,8 @@ export default function SettingsPanel({
 
             {savedMessage && <p>{savedMessage}</p>}
           </div>
+
+          {errorMessage && <p className="errorMessage">{errorMessage}</p>}
 
           <div className="settingsFormGrid">
             <label>
@@ -245,13 +414,18 @@ export default function SettingsPanel({
           </div>
 
           <div className="settingsActions">
-            <button className="primaryButton" onClick={savePreferences}>
-              Salvar configurações
+            <button
+              className="primaryButton"
+              onClick={savePreferences}
+              disabled={savingSettings || loadingSettings}
+            >
+              {savingSettings ? "Salvando..." : "Salvar configurações"}
             </button>
 
             <button
               className="settingsSecondaryButton"
               onClick={resetPreferences}
+              disabled={savingSettings || loadingSettings}
             >
               Restaurar padrão
             </button>
@@ -261,29 +435,29 @@ export default function SettingsPanel({
 
       <div className="settingsGrid">
         <div>
-          <span>Próxima integração</span>
-          <strong>Preferências nos agentes</strong>
+          <span>Banco de dados</span>
+          <strong>Preferências por usuário</strong>
           <p>
-            Depois vamos fazer Autopilot, Product Hunter e Content Generator
-            carregarem esses padrões automaticamente.
+            Cada conta pode ter seus próprios padrões salvos no backend do
+            AffiliateAI Pro.
           </p>
         </div>
 
         <div>
-          <span>Plano futuro</span>
-          <strong>Free / Pro / Premium</strong>
+          <span>Cache local</span>
+          <strong>Agentes sincronizados</strong>
           <p>
-            Essa área vai receber limites de uso, créditos de IA e assinatura
-            quando o SaaS evoluir.
+            O sistema também atualiza o cache local para Autopilot, Product
+            Hunter, Content Generator e Creative Image.
           </p>
         </div>
 
         <div>
-          <span>IA futura</span>
-          <strong>Modelo e tom padrão</strong>
+          <span>Próxima evolução</span>
+          <strong>Configurações avançadas</strong>
           <p>
-            Aqui vamos configurar comportamento da IA, estilo de resposta e
-            formato das campanhas.
+            Depois podemos adicionar modelo de IA, tom padrão, limites de uso e
+            plano do usuário.
           </p>
         </div>
       </div>
