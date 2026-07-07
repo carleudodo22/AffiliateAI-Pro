@@ -17,8 +17,35 @@ type AutopilotHistoryItem = {
   created_at: string;
 };
 
+type ProductHunterHistoryItem = Record<string, any>;
+
+type UserPreferences = {
+  defaultNiche?: string;
+  defaultChannel?: string;
+  defaultCampaignStyle?: string;
+  defaultBudgetStyle?: string;
+  defaultMarketplace?: string;
+  language?: string;
+};
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  defaultNiche: "beleza",
+  defaultChannel: "tiktok",
+  defaultCampaignStyle: "viral",
+  defaultBudgetStyle: "organico",
+  defaultMarketplace: "shopee",
+  language: "pt-BR",
+};
+
 export default function DashboardOverview() {
-  const [history, setHistory] = useState<AutopilotHistoryItem[]>([]);
+  const [autopilotHistory, setAutopilotHistory] = useState<
+    AutopilotHistoryItem[]
+  >([]);
+  const [productHunterHistory, setProductHunterHistory] = useState<
+    ProductHunterHistoryItem[]
+  >([]);
+  const [preferences, setPreferences] =
+    useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,103 +56,220 @@ export default function DashboardOverview() {
     }
 
     window.addEventListener("autopilot-history-updated", refreshDashboard);
+    window.addEventListener("product-hunter-history-updated", refreshDashboard);
 
     return () => {
       window.removeEventListener("autopilot-history-updated", refreshDashboard);
+      window.removeEventListener(
+        "product-hunter-history-updated",
+        refreshDashboard
+      );
     };
   }, []);
 
-  async function loadDashboard() {
-    setLoading(true);
+  function getToken() {
+    return localStorage.getItem("affiliateai_token") || "";
+  }
+
+  function loadPreferences() {
+    const savedPreferences = localStorage.getItem("affiliateai_preferences");
+
+    if (!savedPreferences) {
+      setPreferences(DEFAULT_PREFERENCES);
+      return;
+    }
 
     try {
-      const token = localStorage.getItem("affiliateai_token");
+      const parsedPreferences = JSON.parse(
+        savedPreferences
+      ) as UserPreferences;
+
+      setPreferences({
+        ...DEFAULT_PREFERENCES,
+        ...parsedPreferences,
+      });
+    } catch {
+      setPreferences(DEFAULT_PREFERENCES);
+    }
+  }
+
+  async function loadDashboard() {
+    setLoading(true);
+    loadPreferences();
+
+    try {
+      const token = getToken();
 
       if (!token) {
-        setHistory([]);
+        setAutopilotHistory([]);
+        setProductHunterHistory([]);
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/autopilot/history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const autopilotResponse = await fetch(
+        `${API_URL}/api/autopilot/history`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      if (!response.ok) {
-        setHistory([]);
-        return;
+      if (autopilotResponse.ok) {
+        const autopilotData: AutopilotHistoryItem[] =
+          await autopilotResponse.json();
+        setAutopilotHistory(Array.isArray(autopilotData) ? autopilotData : []);
+      } else {
+        setAutopilotHistory([]);
       }
 
-      const data: AutopilotHistoryItem[] = await response.json();
-      setHistory(data);
+      const productHunterResponse = await fetch(
+        `${API_URL}/api/product-hunter/history`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (productHunterResponse.ok) {
+        const productHunterData = await productHunterResponse.json();
+        setProductHunterHistory(
+          Array.isArray(productHunterData) ? productHunterData : []
+        );
+      } else {
+        setProductHunterHistory([]);
+      }
     } catch {
-      setHistory([]);
+      setAutopilotHistory([]);
+      setProductHunterHistory([]);
     } finally {
       setLoading(false);
     }
   }
 
+  function formatChannel(channel?: string) {
+    const channels: Record<string, string> = {
+      tiktok: "TikTok",
+      instagram: "Instagram",
+      youtube_shorts: "YouTube Shorts",
+      whatsapp: "WhatsApp",
+      pinterest: "Pinterest",
+      google: "Google",
+      facebook_ads: "Facebook Ads",
+    };
+
+    return channels[channel || ""] || channel || "Nenhum";
+  }
+
+  function formatMarketplace(marketplace?: string) {
+    const marketplaces: Record<string, string> = {
+      shopee: "Shopee",
+      mercado_livre: "Mercado Livre",
+      amazon: "Amazon",
+      hotmart: "Hotmart",
+      kiwify: "Kiwify",
+      monetizze: "Monetizze",
+    };
+
+    return marketplaces[marketplace || ""] || marketplace || "Nenhum";
+  }
+
+  function formatStyle(style?: string) {
+    const styles: Record<string, string> = {
+      viral: "Viral",
+      direto: "Direto",
+      premium: "Premium",
+      popular: "Popular",
+      emocional: "Emocional",
+      agressivo: "Agressivo",
+    };
+
+    return styles[style || ""] || style || "Nenhum";
+  }
+
+  function formatDate(date?: string) {
+    if (!date) {
+      return "Sem data";
+    }
+
+    return new Date(date).toLocaleString("pt-BR");
+  }
+
   const metrics = useMemo(() => {
-    const totalCampaigns = history.length;
+    const totalCampaigns = autopilotHistory.length;
+    const totalProductAnalyses = productHunterHistory.length;
 
     const averageScore =
       totalCampaigns > 0
         ? Math.round(
-            history.reduce((total, item) => total + item.score, 0) /
+            autopilotHistory.reduce((total, item) => total + item.score, 0) /
               totalCampaigns
           )
         : 0;
 
     const bestCampaign =
-      history.length > 0
-        ? [...history].sort((a, b) => b.score - a.score)[0]
+      autopilotHistory.length > 0
+        ? [...autopilotHistory].sort((a, b) => b.score - a.score)[0]
         : null;
 
-    const lastCampaign = history.length > 0 ? history[0] : null;
+    const lastCampaign =
+      autopilotHistory.length > 0 ? autopilotHistory[0] : null;
 
     const channelCount: Record<string, number> = {};
 
-    for (const item of history) {
-      channelCount[item.main_channel] =
-        (channelCount[item.main_channel] || 0) + 1;
+    for (const item of autopilotHistory) {
+      channelCount[item.main_channel] = (channelCount[item.main_channel] || 0) + 1;
     }
 
     const topChannel =
       Object.entries(channelCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      preferences.defaultChannel ||
       "Nenhum";
+
+    const totalActions = totalCampaigns + totalProductAnalyses;
 
     return {
       totalCampaigns,
+      totalProductAnalyses,
+      totalActions,
       averageScore,
       bestCampaign,
       lastCampaign,
       topChannel,
     };
-  }, [history]);
+  }, [autopilotHistory, productHunterHistory, preferences]);
 
   return (
     <section className="dashboardPanel">
-      <div className="dashboardHeader">
+      <div className="dashboardCommandHeader">
         <div>
-          <span className="dashboardEyebrow">Visão geral</span>
-          <h2>Dashboard de Campanhas</h2>
+          <span className="dashboardEyebrow">Central de comando</span>
+          <h2>Dashboard AffiliateAI Pro</h2>
           <p>
-            Acompanhe o desempenho das campanhas criadas pelo Autopilot e veja
-            quais oportunidades estão mais fortes.
+            Acompanhe campanhas, análises, preferências salvas e status dos
+            agentes principais do seu SaaS de afiliados.
           </p>
         </div>
 
-        <button onClick={loadDashboard} disabled={loading}>
-          {loading ? "Atualizando..." : "Atualizar dados"}
-        </button>
+        <div className="dashboardCommandStatus">
+          <span>Status geral</span>
+          <strong>{loading ? "Atualizando" : "Operacional"}</strong>
+          <p>Backend, banco, histórico e agentes conectados.</p>
+        </div>
       </div>
 
       <div className="dashboardMetrics">
         <div className="dashboardCard highlight">
           <span>Campanhas criadas</span>
           <strong>{metrics.totalCampaigns}</strong>
-          <small>Total salvo no banco</small>
+          <small>Autopilot salvo no banco</small>
+        </div>
+
+        <div className="dashboardCard">
+          <span>Análises de produto</span>
+          <strong>{metrics.totalProductAnalyses}</strong>
+          <small>Product Hunter</small>
         </div>
 
         <div className="dashboardCard">
@@ -135,19 +279,88 @@ export default function DashboardOverview() {
         </div>
 
         <div className="dashboardCard">
-          <span>Melhor produto</span>
-          <strong>{metrics.bestCampaign?.selected_product || "Nenhum"}</strong>
-          <small>
-            {metrics.bestCampaign
-              ? `${metrics.bestCampaign.score}/100 • ${metrics.bestCampaign.marketplace}`
-              : "Rode o Autopilot"}
-          </small>
+          <span>Ações totais</span>
+          <strong>{metrics.totalActions}</strong>
+          <small>Campanhas + análises</small>
+        </div>
+      </div>
+
+      <div className="dashboardCommandGrid">
+        <div className="dashboardCommandBox large">
+          <div className="dashboardBoxHeader">
+            <div>
+              <span>Melhor oportunidade</span>
+              <h3>{metrics.bestCampaign?.selected_product || "Nenhuma ainda"}</h3>
+            </div>
+
+            <strong>
+              {metrics.bestCampaign ? `${metrics.bestCampaign.score}/100` : "--"}
+            </strong>
+          </div>
+
+          {metrics.bestCampaign ? (
+            <div className="dashboardOpportunity">
+              <p>
+                {metrics.bestCampaign.decision} no nicho{" "}
+                <strong>{metrics.bestCampaign.niche}</strong>, usando{" "}
+                <strong>{formatChannel(metrics.bestCampaign.main_channel)}</strong>{" "}
+                com estilo{" "}
+                <strong>{formatStyle(metrics.bestCampaign.campaign_style)}</strong>.
+              </p>
+
+              <div className="dashboardMiniGrid">
+                <div>
+                  <span>Marketplace</span>
+                  <strong>{formatMarketplace(metrics.bestCampaign.marketplace)}</strong>
+                </div>
+
+                <div>
+                  <span>Canal</span>
+                  <strong>{formatChannel(metrics.bestCampaign.main_channel)}</strong>
+                </div>
+
+                <div>
+                  <span>Criado em</span>
+                  <strong>{formatDate(metrics.bestCampaign.created_at)}</strong>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="dashboardEmpty">
+              Rode o Autopilot para criar sua primeira oportunidade.
+            </p>
+          )}
         </div>
 
-        <div className="dashboardCard">
-          <span>Canal principal</span>
-          <strong>{metrics.topChannel}</strong>
-          <small>Canal mais usado</small>
+        <div className="dashboardCommandBox">
+          <div className="dashboardBoxHeader">
+            <div>
+              <span>Preferências</span>
+              <h3>Padrões salvos</h3>
+            </div>
+          </div>
+
+          <div className="dashboardPreferenceList">
+            <div>
+              <span>Nicho padrão</span>
+              <strong>{preferences.defaultNiche || "beleza"}</strong>
+            </div>
+
+            <div>
+              <span>Canal padrão</span>
+              <strong>{formatChannel(preferences.defaultChannel)}</strong>
+            </div>
+
+            <div>
+              <span>Marketplace</span>
+              <strong>{formatMarketplace(preferences.defaultMarketplace)}</strong>
+            </div>
+
+            <div>
+              <span>Estilo</span>
+              <strong>{formatStyle(preferences.defaultCampaignStyle)}</strong>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -160,7 +373,7 @@ export default function DashboardOverview() {
               <strong>{metrics.lastCampaign.selected_product}</strong>
               <span>
                 {metrics.lastCampaign.niche} •{" "}
-                {metrics.lastCampaign.marketplace}
+                {formatMarketplace(metrics.lastCampaign.marketplace)}
               </span>
               <p>
                 Score {metrics.lastCampaign.score}/100 —{" "}
@@ -169,31 +382,51 @@ export default function DashboardOverview() {
             </div>
           ) : (
             <p className="dashboardEmpty">
-              Nenhuma campanha criada ainda. Rode o Autopilot para começar.
+              Nenhuma campanha criada ainda. Vá para o Autopilot para começar.
             </p>
           )}
         </div>
 
         <div className="dashboardBox">
-          <h3>Status do sistema</h3>
+          <h3>Status dos agentes</h3>
 
           <div className="systemList">
-            <div>
-              <span>Backend</span>
-              <strong>Online</strong>
-            </div>
-
-            <div>
-              <span>Banco de dados</span>
-              <strong>Salvando histórico</strong>
-            </div>
-
             <div>
               <span>Autopilot</span>
               <strong>Ativo</strong>
             </div>
+
+            <div>
+              <span>Product Hunter</span>
+              <strong>Ativo</strong>
+            </div>
+
+            <div>
+              <span>Content Generator</span>
+              <strong>Ativo</strong>
+            </div>
+
+            <div>
+              <span>Configurações</span>
+              <strong>Sincronizadas</strong>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className="dashboardActionsPanel">
+        <div>
+          <span>Próximo passo recomendado</span>
+          <h3>Criar histórico completo de conteúdos</h3>
+          <p>
+            O próximo avanço forte é fazer o Content Generator salvar no banco e
+            aparecer no Histórico Geral junto com Autopilot e Product Hunter.
+          </p>
+        </div>
+
+        <button onClick={loadDashboard} disabled={loading}>
+          {loading ? "Atualizando..." : "Atualizar dashboard"}
+        </button>
       </div>
     </section>
   );

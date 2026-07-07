@@ -2570,3 +2570,202 @@ h1 span {
     flex-direction: column;
   }
 }
+
+.dashboardCommandHeader {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.dashboardCommandHeader h2 {
+  margin: 0 0 10px;
+  font-size: clamp(34px, 5vw, 58px);
+  line-height: 0.94;
+  letter-spacing: -0.075em;
+}
+
+.dashboardCommandHeader p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.75;
+}
+
+.dashboardCommandStatus {
+  padding: 22px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.2), transparent 44%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.dashboardCommandStatus span,
+.dashboardCommandBox span,
+.dashboardActionsPanel span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.dashboardCommandStatus strong {
+  display: block;
+  color: #00ff88;
+  font-size: 25px;
+  letter-spacing: -0.04em;
+  margin-bottom: 10px;
+}
+
+.dashboardCommandStatus p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.dashboardCommandGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.dashboardCommandBox {
+  padding: 22px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.dashboardCommandBox.large {
+  border-color: rgba(0, 255, 136, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.12), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.dashboardBoxHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.dashboardBoxHeader h3 {
+  margin: 0;
+  color: white;
+  font-size: 28px;
+  letter-spacing: -0.055em;
+}
+
+.dashboardBoxHeader > strong {
+  color: #00ff88;
+  font-size: 32px;
+  letter-spacing: -0.06em;
+}
+
+.dashboardOpportunity p {
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.75;
+}
+
+.dashboardOpportunity p strong {
+  color: #00ff88;
+}
+
+.dashboardMiniGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 11px;
+}
+
+.dashboardMiniGrid div,
+.dashboardPreferenceList div {
+  padding: 14px;
+  border-radius: 17px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.dashboardMiniGrid span,
+.dashboardPreferenceList span {
+  display: block;
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dashboardMiniGrid strong,
+.dashboardPreferenceList strong {
+  color: white;
+  font-size: 14px;
+}
+
+.dashboardPreferenceList {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboardActionsPanel {
+  margin-top: 14px;
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.12), transparent 42%),
+    rgba(0, 0, 0, 0.26);
+}
+
+.dashboardActionsPanel h3 {
+  margin: 0 0 8px;
+  color: white;
+  font-size: 24px;
+  letter-spacing: -0.045em;
+}
+
+.dashboardActionsPanel p {
+  margin: 0;
+  max-width: 760px;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.7;
+}
+
+.dashboardActionsPanel button {
+  min-height: 44px;
+  padding: 0 17px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  .dashboardCommandHeader,
+  .dashboardCommandGrid,
+  .dashboardMiniGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardActionsPanel,
+  .dashboardBoxHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
