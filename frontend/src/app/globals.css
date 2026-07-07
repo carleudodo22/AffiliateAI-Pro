@@ -1645,3 +1645,610 @@ h1 span {
     text-align: left;
   }
 }
+
+.contentPanel {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding: 28px;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.16), transparent 34%),
+    linear-gradient(145deg, rgba(8, 18, 14, 0.96), rgba(2, 4, 3, 0.98));
+  box-shadow:
+    0 35px 110px rgba(0, 0, 0, 0.46),
+    0 0 60px rgba(0, 255, 136, 0.06);
+}
+
+.contentHeader {
+  display: grid;
+  grid-template-columns: 1fr 230px;
+  gap: 22px;
+  margin-bottom: 24px;
+}
+
+.contentEyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.contentHeader h2 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.contentHeader p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.75;
+}
+
+.contentStatus {
+  align-self: start;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 45%),
+    rgba(0, 255, 136, 0.06);
+}
+
+.contentStatus span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.contentStatus strong {
+  display: block;
+  color: #00ff88;
+  font-size: 18px;
+}
+
+.contentControls {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  backdrop-filter: blur(18px);
+}
+
+.contentControls label {
+  display: grid;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.contentControls input,
+.contentControls select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 15px;
+  outline: none;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.42);
+  color: white;
+  font-size: 14px;
+}
+
+.contentControls select option {
+  background: #050806;
+  color: white;
+}
+
+.contentControls input:focus,
+.contentControls select:focus {
+  border-color: rgba(0, 255, 136, 0.56);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.08);
+}
+
+.contentButton {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  border-radius: 18px;
+}
+
+.contentResult {
+  margin-top: 24px;
+}
+
+.contentScoreBox {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.contentScoreBox div {
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.18), transparent 42%),
+    linear-gradient(145deg, rgba(0, 255, 136, 0.07), rgba(255, 255, 255, 0.025));
+}
+
+.contentScoreBox span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.contentScoreBox strong {
+  display: block;
+  color: #00ff88;
+  font-size: clamp(26px, 3.5vw, 38px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+  margin-bottom: 8px;
+}
+
+.contentScoreBox small {
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.contentCard {
+  padding: 21px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.contentCard h3 {
+  margin: 0 0 11px;
+  color: white;
+  font-size: 18px;
+}
+
+.contentCard p,
+.contentCard li {
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.contentCard button {
+  margin-top: 15px;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  .contentHeader,
+  .contentControls,
+  .contentScoreBox,
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.contentPanel {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(0, 255, 136, 0.22), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(0, 119, 255, 0.14), transparent 30%),
+    linear-gradient(145deg, rgba(8, 18, 14, 0.98), rgba(2, 4, 3, 0.99));
+  box-shadow:
+    0 35px 110px rgba(0, 0, 0, 0.5),
+    0 0 70px rgba(0, 255, 136, 0.08);
+}
+
+.contentHeader {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  padding: 34px 34px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+.contentHeaderMain h2 {
+  margin: 0 0 12px;
+  font-size: clamp(36px, 5vw, 62px);
+  line-height: 0.92;
+  letter-spacing: -0.075em;
+}
+
+.contentHeaderMain p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.66);
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+.contentEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.contentHeroStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+  max-width: 720px;
+}
+
+.contentHeroStats div {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.contentHeroStats strong {
+  display: block;
+  color: #00ff88;
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin-bottom: 7px;
+}
+
+.contentHeroStats span {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+}
+
+.contentStatus {
+  align-self: stretch;
+  padding: 22px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.2), transparent 44%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.contentStatus span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.contentStatus strong {
+  display: block;
+  color: #00ff88;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin-bottom: 12px;
+}
+
+.contentStatus p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.contentFeatureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 24px 34px 0;
+}
+
+.contentFeatureGrid div {
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018));
+}
+
+.contentFeatureGrid span {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  color: #001d10;
+  background: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.contentFeatureGrid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: white;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.contentFeatureGrid p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.contentControls {
+  margin: 24px 34px 0;
+  padding: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.08), transparent 34%),
+    rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.contentControls label {
+  display: grid;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.contentControls .contentWide {
+  grid-column: span 2;
+}
+
+.contentControls input,
+.contentControls select {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 15px;
+  outline: none;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.48);
+  color: white;
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.contentControls select option {
+  background: #050806;
+  color: white;
+}
+
+.contentControls input:focus,
+.contentControls select:focus {
+  border-color: rgba(0, 255, 136, 0.56);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.08);
+}
+
+.contentButton {
+  grid-column: 1 / -1;
+  min-height: 58px;
+  border-radius: 18px;
+  font-size: 15px;
+}
+
+.contentPreviewPanel {
+  margin: 24px 34px 34px;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 22px;
+  border-radius: 28px;
+  border: 1px dashed rgba(0, 255, 136, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.11), transparent 38%),
+    rgba(0, 255, 136, 0.035);
+}
+
+.contentPreviewPanel span {
+  display: block;
+  margin-bottom: 10px;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.contentPreviewPanel h3 {
+  margin: 0 0 10px;
+  color: white;
+  font-size: 30px;
+  letter-spacing: -0.05em;
+}
+
+.contentPreviewPanel p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.7;
+}
+
+.contentPreviewList {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.contentPreviewList div {
+  padding: 14px;
+  border-radius: 16px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.contentResult {
+  margin: 24px 34px 34px;
+}
+
+.contentScoreBox {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.contentScoreBox div {
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.18), transparent 42%),
+    linear-gradient(145deg, rgba(0, 255, 136, 0.07), rgba(255, 255, 255, 0.025));
+}
+
+.contentScoreBox span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.contentScoreBox strong {
+  display: block;
+  color: #00ff88;
+  font-size: clamp(26px, 3.5vw, 38px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+  margin-bottom: 8px;
+}
+
+.contentScoreBox small {
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.contentCard {
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.contentCard.highlight {
+  border-color: rgba(0, 255, 136, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.13), transparent 40%),
+    rgba(0, 255, 136, 0.045);
+}
+
+.contentCard h3 {
+  margin: 0 0 11px;
+  color: white;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.contentCard p,
+.contentCard li {
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.contentCard button {
+  margin-top: 15px;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  .contentHeader,
+  .contentFeatureGrid,
+  .contentControls,
+  .contentPreviewPanel,
+  .contentScoreBox,
+  .contentGrid,
+  .contentHeroStats {
+    grid-template-columns: 1fr;
+  }
+
+  .contentControls .contentWide {
+    grid-column: auto;
+  }
+
+  .contentHeader,
+  .contentFeatureGrid {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .contentControls,
+  .contentPreviewPanel,
+  .contentResult {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}

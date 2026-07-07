@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AffiliateAutopilotPanel from "./components/AffiliateAutopilotPanel";
+import ContentGeneratorPanel from "./components/ContentGeneratorPanel";
 import DashboardOverview from "./components/DashboardOverview";
 import HistoryCenter from "./components/HistoryCenter";
 import ProductHunterPanel from "./components/ProductHunterPanel";
@@ -183,34 +184,7 @@ export default function Home() {
     }
 
     if (activeTab === "content_generator") {
-      return (
-        <section className="comingSoonPanel">
-          <span className="comingEyebrow">Agente em preparação</span>
-          <h2>Content Generator Agent</h2>
-          <p>
-            Aqui vai entrar o gerador profissional de conteúdo com copy,
-            headline, legenda, roteiro, CTA, WhatsApp, anúncio e variações para
-            cada canal.
-          </p>
-
-          <div className="comingGrid">
-            <div>
-              <strong>Copy de vendas</strong>
-              <span>Textos curtos e diretos para conversão.</span>
-            </div>
-
-            <div>
-              <strong>Roteiros</strong>
-              <span>Vídeos curtos para TikTok, Reels e Shorts.</span>
-            </div>
-
-            <div>
-              <strong>Hashtags e CTAs</strong>
-              <span>Pacote pronto para postagem.</span>
-            </div>
-          </div>
-        </section>
-      );
+      return <ContentGeneratorPanel token={token} />;
     }
 
     if (activeTab === "history") {
