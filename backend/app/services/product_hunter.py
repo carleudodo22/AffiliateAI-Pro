@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.product_analysis import ProductAnalysis
+from app.models.user import User
 from app.schemas.product_hunter import (
     ProductHunterRequest,
     ProductHunterResponse,
@@ -14,6 +15,7 @@ class ProductHunterService:
         self,
         data: ProductHunterRequest,
         db: Session | None = None,
+        current_user: User | None = None,
     ) -> ProductHunterResponse:
         niche = self._clean_text(data.niche)
         product_name = self._clean_text(data.product_name or f"produto de {niche}")
@@ -84,6 +86,7 @@ class ProductHunterService:
 
         if db is not None:
             saved_analysis = ProductAnalysis(
+                user_id=current_user.id if current_user else None,
                 niche=niche,
                 product_name=product_name,
                 marketplace=data.marketplace,

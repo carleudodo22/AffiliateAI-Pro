@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, JSON
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +10,13 @@ class ProductAnalysis(Base):
     __tablename__ = "product_analyses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    user_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
 
     niche: Mapped[str] = mapped_column(String(120), index=True)
     product_name: Mapped[str] = mapped_column(String(180), index=True)
