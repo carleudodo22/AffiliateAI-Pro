@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import AffiliateAutopilotPanel from "./components/AffiliateAutopilotPanel";
 import DashboardOverview from "./components/DashboardOverview";
+import HistoryCenter from "./components/HistoryCenter";
+import ProductHunterPanel from "./components/ProductHunterPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -20,8 +22,17 @@ type AuthResponse = {
   user: User;
 };
 
+type AppTab =
+  | "dashboard"
+  | "autopilot"
+  | "product_hunter"
+  | "content_generator"
+  | "history"
+  | "settings";
+
 export default function Home() {
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [activeTab, setActiveTab] = useState<AppTab>("dashboard");
 
   const [token, setToken] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -101,6 +112,7 @@ export default function Home() {
       localStorage.setItem("affiliateai_token", data.access_token);
       setToken(data.access_token);
       setUser(data.user);
+      setActiveTab("dashboard");
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -138,6 +150,7 @@ export default function Home() {
       localStorage.setItem("affiliateai_token", data.access_token);
       setToken(data.access_token);
       setUser(data.user);
+      setActiveTab("dashboard");
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -153,6 +166,84 @@ export default function Home() {
     localStorage.removeItem("affiliateai_token");
     setToken("");
     setUser(null);
+    setActiveTab("dashboard");
+  }
+
+  function renderTabContent() {
+    if (activeTab === "dashboard") {
+      return <DashboardOverview />;
+    }
+
+    if (activeTab === "autopilot") {
+      return <AffiliateAutopilotPanel token={token} />;
+    }
+
+    if (activeTab === "product_hunter") {
+      return <ProductHunterPanel token={token} />;
+    }
+
+    if (activeTab === "content_generator") {
+      return (
+        <section className="comingSoonPanel">
+          <span className="comingEyebrow">Agente em preparação</span>
+          <h2>Content Generator Agent</h2>
+          <p>
+            Aqui vai entrar o gerador profissional de conteúdo com copy,
+            headline, legenda, roteiro, CTA, WhatsApp, anúncio e variações para
+            cada canal.
+          </p>
+
+          <div className="comingGrid">
+            <div>
+              <strong>Copy de vendas</strong>
+              <span>Textos curtos e diretos para conversão.</span>
+            </div>
+
+            <div>
+              <strong>Roteiros</strong>
+              <span>Vídeos curtos para TikTok, Reels e Shorts.</span>
+            </div>
+
+            <div>
+              <strong>Hashtags e CTAs</strong>
+              <span>Pacote pronto para postagem.</span>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeTab === "history") {
+      return <HistoryCenter token={token} />;
+    }
+
+    return (
+      <section className="comingSoonPanel">
+        <span className="comingEyebrow">Configurações</span>
+        <h2>Configurações do SaaS</h2>
+        <p>
+          Aqui vamos colocar preferências do usuário, dados da conta, limites do
+          plano, canais principais, marketplaces e configurações da IA.
+        </p>
+
+        <div className="comingGrid">
+          <div>
+            <strong>Conta</strong>
+            <span>Dados do usuário e acesso.</span>
+          </div>
+
+          <div>
+            <strong>Preferências</strong>
+            <span>Nichos, canais e estilo padrão.</span>
+          </div>
+
+          <div>
+            <strong>Plano</strong>
+            <span>Free, Pro e Premium futuramente.</span>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   if (checkingSession) {
@@ -272,7 +363,7 @@ export default function Home() {
     <main className="page">
       <div className="gridGlow" />
 
-      <section className="hero">
+      <section className="hero appHero">
         <div className="topBar">
           <div>
             <strong>{user.name}</strong>
@@ -297,9 +388,53 @@ export default function Home() {
         </p>
       </section>
 
-      <DashboardOverview />
+      <section className="workspaceShell">
+        <div className="workspaceNav">
+          <button
+            className={activeTab === "dashboard" ? "active" : ""}
+            onClick={() => setActiveTab("dashboard")}
+          >
+            Dashboard
+          </button>
 
-      <AffiliateAutopilotPanel token={token} />
+          <button
+            className={activeTab === "autopilot" ? "active" : ""}
+            onClick={() => setActiveTab("autopilot")}
+          >
+            Autopilot
+          </button>
+
+          <button
+            className={activeTab === "product_hunter" ? "active" : ""}
+            onClick={() => setActiveTab("product_hunter")}
+          >
+            Product Hunter
+          </button>
+
+          <button
+            className={activeTab === "content_generator" ? "active" : ""}
+            onClick={() => setActiveTab("content_generator")}
+          >
+            Content Generator
+          </button>
+
+          <button
+            className={activeTab === "history" ? "active" : ""}
+            onClick={() => setActiveTab("history")}
+          >
+            Histórico
+          </button>
+
+          <button
+            className={activeTab === "settings" ? "active" : ""}
+            onClick={() => setActiveTab("settings")}
+          >
+            Configurações
+          </button>
+        </div>
+      </section>
+
+      {renderTabContent()}
     </main>
   );
 }

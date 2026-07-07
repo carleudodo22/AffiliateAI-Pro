@@ -889,3 +889,759 @@ h1 span {
     text-align: left;
   }
 }
+
+.workspaceShell {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding: 12px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.1), transparent 32%),
+    rgba(0, 0, 0, 0.26);
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.workspaceNav {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.workspaceNav button {
+  min-height: 46px;
+  border-radius: 16px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.62);
+  background: transparent;
+  border: 1px solid transparent;
+  font-weight: 900;
+  font-size: 13px;
+  transition: 0.2s ease;
+}
+
+.workspaceNav button:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.workspaceNav button.active {
+  color: #001d10;
+  background:
+    linear-gradient(180deg, #35ffa4 0%, #00ff88 55%, #00d874 100%);
+  box-shadow:
+    0 16px 38px rgba(0, 255, 136, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.comingSoonPanel {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding: 34px;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.15), transparent 35%),
+    linear-gradient(145deg, rgba(8, 18, 14, 0.96), rgba(2, 4, 3, 0.98));
+  box-shadow:
+    0 35px 110px rgba(0, 0, 0, 0.46),
+    0 0 60px rgba(0, 255, 136, 0.06);
+}
+
+.comingEyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.comingSoonPanel h2 {
+  margin: 0 0 12px;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.comingSoonPanel p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.75;
+}
+
+.comingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.comingGrid div {
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.comingGrid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 17px;
+}
+
+.comingGrid span {
+  display: block;
+  color: rgba(255, 255, 255, 0.56);
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .workspaceNav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .comingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.historyCenterPanel {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding: 28px;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.16), transparent 34%),
+    linear-gradient(145deg, rgba(8, 18, 14, 0.96), rgba(2, 4, 3, 0.98));
+  box-shadow:
+    0 35px 110px rgba(0, 0, 0, 0.46),
+    0 0 60px rgba(0, 255, 136, 0.06);
+}
+
+.historyCenterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 22px;
+  margin-bottom: 24px;
+}
+
+.historyEyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.historyCenterHeader h2 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.historyCenterHeader p {
+  max-width: 720px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.75;
+}
+
+.historyCenterHeader button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+.historyCenterLayout {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 16px;
+}
+
+.historyListPanel,
+.historyDetailsPanel {
+  padding: 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.historyListHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.historyListHeader strong {
+  color: white;
+  font-size: 18px;
+}
+
+.historyListHeader span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 13px;
+}
+
+.historyEmpty,
+.historyDetailsEmpty {
+  padding: 20px;
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.62);
+  border: 1px dashed rgba(0, 255, 136, 0.22);
+  background: rgba(0, 255, 136, 0.04);
+  line-height: 1.7;
+}
+
+.historyDetailsEmpty span {
+  display: block;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+}
+
+.historyDetailsEmpty h3 {
+  margin: 0 0 10px;
+  color: white;
+  font-size: 30px;
+  letter-spacing: -0.05em;
+}
+
+.historyDetailsEmpty p {
+  margin: 0;
+}
+
+.historyList {
+  display: grid;
+  gap: 10px;
+  max-height: 740px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.historyItem {
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.035);
+  transition: 0.2s ease;
+}
+
+.historyItem:hover,
+.historyItem.active {
+  border-color: rgba(0, 255, 136, 0.3);
+  background: rgba(0, 255, 136, 0.07);
+  transform: translateY(-1px);
+}
+
+.historyItem strong {
+  display: block;
+  color: white;
+  margin-bottom: 5px;
+}
+
+.historyItem span {
+  display: block;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 13px;
+}
+
+.historyItem small {
+  display: block;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 12px;
+}
+
+.historyItem > div:last-child {
+  text-align: right;
+}
+
+.historyDetailsHero {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.historyDetailsHero > div {
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 42%),
+    rgba(0, 255, 136, 0.055);
+}
+
+.historyDetailsHero span,
+.historyDetailMetrics span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.historyDetailsHero h3 {
+  margin: 0 0 8px;
+  color: #00ff88;
+  font-size: 30px;
+  letter-spacing: -0.055em;
+}
+
+.historyDetailsHero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.historyDetailsHero strong {
+  display: block;
+  color: #00ff88;
+  font-size: 34px;
+  letter-spacing: -0.06em;
+  margin-bottom: 6px;
+}
+
+.historyDetailsHero small {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.historyDetailMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 11px;
+  margin-bottom: 14px;
+}
+
+.historyDetailMetrics div {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.historyDetailMetrics strong {
+  display: block;
+  color: white;
+  font-size: 25px;
+  letter-spacing: -0.05em;
+}
+
+.historyDetailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 13px;
+  margin-bottom: 13px;
+}
+
+.historyDetailCard {
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.historyDetailCard h4 {
+  margin: 0 0 10px;
+  color: white;
+  font-size: 17px;
+  letter-spacing: -0.025em;
+}
+
+.historyDetailCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.historyDetailCard button {
+  margin-top: 14px;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+.historyDetailCard ul {
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.85;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .historyCenterHeader,
+  .historyItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .historyCenterLayout,
+  .historyDetailsHero,
+  .historyDetailMetrics,
+  .historyDetailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .historyItem > div:last-child {
+    text-align: left;
+  }
+}
+
+.hunterPanel {
+  width: min(1180px, 100%);
+  margin: 28px auto 0;
+  padding: 28px;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.16), transparent 34%),
+    linear-gradient(145deg, rgba(8, 18, 14, 0.96), rgba(2, 4, 3, 0.98));
+  box-shadow:
+    0 35px 110px rgba(0, 0, 0, 0.46),
+    0 0 60px rgba(0, 255, 136, 0.06);
+}
+
+.hunterHeader {
+  display: grid;
+  grid-template-columns: 1fr 230px;
+  gap: 22px;
+  margin-bottom: 24px;
+}
+
+.hunterEyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hunterHeader h2 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.hunterHeader p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.75;
+}
+
+.hunterStatus {
+  align-self: start;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 45%),
+    rgba(0, 255, 136, 0.06);
+}
+
+.hunterStatus span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.hunterStatus strong {
+  display: block;
+  color: #00ff88;
+  font-size: 18px;
+}
+
+.hunterControls {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  backdrop-filter: blur(18px);
+}
+
+.hunterControls label {
+  display: grid;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.hunterControls input,
+.hunterControls select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 15px;
+  outline: none;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.42);
+  color: white;
+  font-size: 14px;
+}
+
+.hunterControls select option {
+  background: #050806;
+  color: white;
+}
+
+.hunterControls input:focus,
+.hunterControls select:focus {
+  border-color: rgba(0, 255, 136, 0.56);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.08);
+}
+
+.hunterButton {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  border-radius: 18px;
+}
+
+.hunterResult {
+  margin-top: 24px;
+}
+
+.hunterScoreBox {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.hunterScoreBox div {
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.18), transparent 42%),
+    linear-gradient(145deg, rgba(0, 255, 136, 0.07), rgba(255, 255, 255, 0.025));
+}
+
+.hunterScoreBox span,
+.hunterMetrics span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.hunterScoreBox strong {
+  display: block;
+  color: #00ff88;
+  font-size: clamp(26px, 3.5vw, 38px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+  margin-bottom: 8px;
+}
+
+.hunterScoreBox small {
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.hunterMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+  margin-bottom: 16px;
+}
+
+.hunterMetrics div {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.hunterMetrics strong {
+  display: block;
+  color: white;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.hunterGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.hunterCard {
+  padding: 21px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.hunterCard h3 {
+  margin: 0 0 11px;
+  color: white;
+  font-size: 18px;
+}
+
+.hunterCard p,
+.hunterCard li {
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.hunterCard button,
+.hunterHistoryHeader button {
+  margin-top: 15px;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+.hunterHistory {
+  margin-top: 24px;
+  padding: 22px;
+  border-radius: 26px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.hunterHistoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.hunterHistoryHeader h3 {
+  margin: 0 0 5px;
+  color: white;
+  font-size: 21px;
+}
+
+.hunterHistoryHeader p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 14px;
+}
+
+.hunterEmpty {
+  padding: 18px;
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.64);
+  border: 1px dashed rgba(0, 255, 136, 0.22);
+  background: rgba(0, 255, 136, 0.04);
+}
+
+.hunterHistoryList {
+  display: grid;
+  gap: 11px;
+}
+
+.hunterHistoryItem {
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.hunterHistoryItem:hover {
+  border-color: rgba(0, 255, 136, 0.28);
+  background: rgba(0, 255, 136, 0.06);
+}
+
+.hunterHistoryItem strong {
+  display: block;
+  color: white;
+  margin-bottom: 5px;
+}
+
+.hunterHistoryItem span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 13px;
+}
+
+.hunterHistoryItem > div:last-child {
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .hunterHeader,
+  .hunterControls,
+  .hunterScoreBox,
+  .hunterMetrics,
+  .hunterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .hunterHistoryHeader,
+  .hunterHistoryItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hunterHistoryItem > div:last-child {
+    text-align: left;
+  }
+}
