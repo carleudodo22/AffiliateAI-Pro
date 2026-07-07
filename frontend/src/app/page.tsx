@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ContentGeneratorPanel from "./components/ContentGeneratorPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -313,7 +314,7 @@ export default function Home() {
         throw new Error(`Backend respondeu erro ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
+      const data: ProductHunterResponse = await response.json();
       setResult(data);
 
       await Promise.all([
@@ -510,7 +511,10 @@ export default function Home() {
             <div className="formGrid">
               <label>
                 Nicho
-                <input value={niche} onChange={(event) => setNiche(event.target.value)} />
+                <input
+                  value={niche}
+                  onChange={(event) => setNiche(event.target.value)}
+                />
               </label>
 
               <label>
@@ -638,14 +642,17 @@ export default function Home() {
                     <strong>{result.score.demand_score}</strong>
                     <span>Demanda</span>
                   </div>
+
                   <div>
                     <strong>{result.score.virality_score}</strong>
                     <span>Viralização</span>
                   </div>
+
                   <div>
                     <strong>{result.score.profit_score}</strong>
                     <span>Lucro</span>
                   </div>
+
                   <div>
                     <strong>{result.score.competition_score}</strong>
                     <span>Concorrência</span>
@@ -683,6 +690,16 @@ export default function Home() {
             )}
           </section>
         </div>
+
+        <ContentGeneratorPanel
+          token={token}
+          productName={productName}
+          niche={niche}
+          targetAudience={targetAudience}
+          marketplace={marketplace}
+          mainChannel={mainChannel}
+          analysisId={result?.id ?? null}
+        />
 
         <section className="historyPanel">
           <div className="panelHeader">

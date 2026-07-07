@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import redis
 
 from app.api.auth import router as auth_router
+from app.api.content_generator import router as content_generator_router
 from app.api.dashboard import router as dashboard_router
 from app.api.product_hunter import router as product_hunter_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import check_database_connection, engine
+from app.models.content_generation import ContentGeneration
 from app.models.product_analysis import ProductAnalysis
 from app.models.user import User
 
@@ -70,4 +72,5 @@ def health_check():
 
 app.include_router(auth_router)
 app.include_router(product_hunter_router)
+app.include_router(content_generator_router)
 app.include_router(dashboard_router)

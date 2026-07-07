@@ -770,3 +770,217 @@ h1 span {
     grid-template-columns: 1fr;
   }
 }
+.contentPanel {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  margin: 24px auto 0;
+  border: 1px solid var(--green-border);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(12, 32, 18, 0.92), rgba(4, 12, 7, 0.88));
+  box-shadow:
+    0 0 38px rgba(57, 255, 20, 0.13),
+    inset 0 0 46px rgba(57, 255, 20, 0.035);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+  text-align: left;
+}
+
+.contentIntro {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  align-items: center;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
+}
+
+.contentIntro h2 {
+  margin: 0;
+  color: var(--green);
+  font-size: 26px;
+  text-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+}
+
+.contentIntro p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.contentMainButton {
+  border: none;
+  cursor: pointer;
+  min-width: 230px;
+  font-size: 15px;
+}
+
+.generatorControls {
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 17px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
+}
+
+.generatorControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.generatorControls select {
+  width: 100%;
+  border: 1px solid rgba(57, 255, 20, 0.24);
+  outline: none;
+  border-radius: 14px;
+  padding: 14px 15px;
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.generatorControls select:focus {
+  border-color: var(--green);
+  box-shadow:
+    0 0 0 3px rgba(57, 255, 20, 0.08),
+    0 0 18px rgba(57, 255, 20, 0.16);
+}
+
+.generatorControls option {
+  background: #061109;
+  color: var(--text);
+}
+
+.contentEmpty {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.contentEmpty strong {
+  color: var(--green);
+  text-transform: capitalize;
+}
+
+.copyMessage {
+  margin: 18px 24px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(57, 255, 20, 0.28);
+  border-radius: 14px;
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--green);
+  font-weight: 900;
+}
+
+.contentResultGrid {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.contentCard {
+  border: 1px solid rgba(57, 255, 20, 0.18);
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(57, 255, 20, 0.052);
+  transition: 0.2s ease;
+}
+
+.contentCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--green);
+  box-shadow: 0 0 26px rgba(57, 255, 20, 0.14);
+}
+
+.contentCard.featured {
+  grid-column: span 2;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(57, 255, 20, 0.15), transparent 36%),
+    rgba(57, 255, 20, 0.06);
+}
+
+.contentCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.contentCardHeader span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.contentCardHeader button {
+  border: 1px solid rgba(57, 255, 20, 0.28);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.contentCardHeader button:hover {
+  background: var(--green);
+  color: #001702;
+}
+
+.contentCard h3 {
+  margin: 0;
+  color: var(--green);
+  font-size: 26px;
+  line-height: 1.25;
+  text-transform: capitalize;
+}
+
+.contentCard p,
+.contentCard li {
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.contentCard p {
+  margin: 0;
+}
+
+.contentCard ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media (max-width: 900px) {
+  .contentIntro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .contentMainButton {
+    width: 100%;
+  }
+
+  .generatorControls {
+    grid-template-columns: 1fr;
+  }
+
+  .contentResultGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .contentCard.featured {
+    grid-column: span 1;
+  }
+}
