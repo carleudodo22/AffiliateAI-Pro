@@ -38,11 +38,8 @@ TrafficChannel = Literal[
 
 
 class AutopilotRequest(BaseModel):
-    niche: str = Field(..., min_length=2, examples=["beleza"])
-    target_audience: str | None = Field(
-        default=None,
-        examples=["mulheres de 20 a 35 anos interessadas em autocuidado"],
-    )
+    niche: str = Field(..., min_length=2)
+    target_audience: str | None = None
 
     objective: AutopilotObjective = "vender"
     main_channel: TrafficChannel = "tiktok"
@@ -52,7 +49,6 @@ class AutopilotRequest(BaseModel):
 
 class AutopilotResponse(BaseModel):
     id: int | None = None
-
     agent: str
     status: str
 

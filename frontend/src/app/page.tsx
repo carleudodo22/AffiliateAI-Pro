@@ -1,92 +1,159 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AffiliateAutopilotPanel from "./components/AffiliateAutopilotPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type User = {
+type AutopilotResult = {
+  id: number | null;
+  agent: string;
+  status: string;
+
+  niche: string;
+  target_audience: string | null;
+
+  objective: string;
+  main_channel: string;
+  budget_style: string;
+  campaign_style: string;
+
+  selected_product: string;
+  marketplace: string;
+  score: number;
+  decision: string;
+
+  strategy: string;
+  headline: string;
+  short_copy: string;
+  video_script: string;
+  image_brief: string;
+  voiceover_script: string;
+
+  checklist: string[];
+  campaign_package: {
+    product?: {
+      name?: string;
+      marketplace?: string;
+      average_price?: number;
+      commission_percent?: number;
+      reason?: string;
+    };
+    market_analysis?: {
+      score?: number;
+      decision?: string;
+      demand_score?: number;
+      competition_score?: number;
+      visual_strength?: number;
+      impulse_buy?: number;
+      risk_level?: string;
+    };
+    content_package?: {
+      hashtags?: string[];
+      ctas?: string[];
+    };
+    publishing_plan?: {
+      posting_angle?: string;
+      test_variations?: string[];
+    };
+  };
+
+  created_at: string | null;
+};
+
+type AutopilotHistoryItem = {
   id: number;
-  name: string;
-  email: string;
-  is_active: boolean;
+  niche: string;
+  selected_product: string;
+  marketplace: string;
+  score: number;
+  decision: string;
+  main_channel: string;
+  campaign_style: string;
+  status: string;
   created_at: string;
 };
 
-type AuthResponse = {
-  access_token: string;
-  token_type: string;
-  user: User;
-};
-
-export default function Home() {
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
-
-  const [token, setToken] = useState("");
-  const [user, setUser] = useState<User | null>(null);
-
-  const [authName, setAuthName] = useState("Kauet");
-  const [authEmail, setAuthEmail] = useState("teste456@email.com");
-  const [authPassword, setAuthPassword] = useState("123456");
+export default function AffiliateAutopilotPanel() {
+  const [niche, setNiche] = useState("beleza");
+  const [targetAudience, setTargetAudience] = useState(
+    "mulheres de 20 a 35 anos interessadas em autocuidado"
+  );
+  const [mainChannel, setMainChannel] = useState("tiktok");
+  const [campaignStyle, setCampaignStyle] = useState("viral");
+  const [objective, setObjective] = useState("vender");
+  const [budgetStyle, setBudgetStyle] = useState("organico");
 
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [result, setResult] = useState<AutopilotResult | null>(null);
+  const [history, setHistory] = useState<AutopilotHistoryItem[]>([]);
+
   useEffect(() => {
-    loadCurrentUser();
+    loadHistory();
   }, []);
 
-  async function loadCurrentUser() {
-    try {
-      const savedToken = localStorage.getItem("affiliateai_token");
+  function getToken() {
+    return localStorage.getItem("affiliateai_token");
+  }
 
-      if (!savedToken) {
-        setCheckingSession(false);
+  async function loadHistory() {
+    setLoadingHistory(true);
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        setLoadingHistory(false);
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/auth/me`, {
+      const response = await fetch(`${API_URL}/api/autopilot/history`, {
         headers: {
-          Authorization: `Bearer ${savedToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        localStorage.removeItem("affiliateai_token");
-        setToken("");
-        setUser(null);
-        setCheckingSession(false);
+        setLoadingHistory(false);
         return;
       }
 
-      const data: User = await response.json();
-
-      setToken(savedToken);
-      setUser(data);
+      const data: AutopilotHistoryItem[] = await response.json();
+      setHistory(data);
     } catch {
-      localStorage.removeItem("affiliateai_token");
-      setToken("");
-      setUser(null);
+      setHistory([]);
     } finally {
-      setCheckingSession(false);
+      setLoadingHistory(false);
     }
   }
 
-  async function register() {
+  async function runAutopilot() {
     setLoading(true);
     setErrorMessage("");
+    setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Você precisa estar logado para rodar o Autopilot.");
+      }
+
+      const response = await fetch(`${API_URL}/api/autopilot/run`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: authName,
-          email: authEmail,
-          password: authPassword,
+          niche,
+          target_audience: targetAudience,
+          objective,
+          main_channel: mainChannel,
+          budget_style: budgetStyle,
+          campaign_style: campaignStyle,
         }),
       });
 
@@ -95,36 +162,38 @@ export default function Home() {
         throw new Error(text);
       }
 
-      const data: AuthResponse = await response.json();
+      const data: AutopilotResult = await response.json();
 
-      localStorage.setItem("affiliateai_token", data.access_token);
-      setToken(data.access_token);
-      setUser(data.user);
+      setResult(data);
+      await loadHistory();
+
+      window.dispatchEvent(new Event("autopilot-history-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao cadastrar.");
+        setErrorMessage("Erro ao rodar Autopilot.");
       }
     } finally {
       setLoading(false);
     }
   }
 
-  async function login() {
+  async function openHistoryItem(id: number) {
     setLoading(true);
     setErrorMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Você precisa estar logado.");
+      }
+
+      const response = await fetch(`${API_URL}/api/autopilot/${id}`, {
         headers: {
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          email: authEmail,
-          password: authPassword,
-        }),
       });
 
       if (!response.ok) {
@@ -132,171 +201,316 @@ export default function Home() {
         throw new Error(text);
       }
 
-      const data: AuthResponse = await response.json();
+      const data: AutopilotResult = await response.json();
 
-      localStorage.setItem("affiliateai_token", data.access_token);
-      setToken(data.access_token);
-      setUser(data.user);
+      setResult(data);
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao fazer login.");
+        setErrorMessage("Erro ao abrir campanha.");
       }
     } finally {
       setLoading(false);
     }
   }
 
-  function logout() {
-    localStorage.removeItem("affiliateai_token");
-    setToken("");
-    setUser(null);
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text);
   }
 
-  if (checkingSession) {
-    return (
-      <main className="page">
-        <div className="gridGlow" />
+  function formatDate(date: string | null) {
+    if (!date) {
+      return "Agora";
+    }
 
-        <section className="authShell">
-          <div className="badge">
-            <span className="pulse" />
-            AffiliateAI Pro
-          </div>
-
-          <h1>
-            Carregando <span>sistema...</span>
-          </h1>
-
-          <p className="subtitle">Verificando sua sessão.</p>
-        </section>
-      </main>
-    );
-  }
-
-  if (!user || !token) {
-    return (
-      <main className="page">
-        <div className="gridGlow" />
-
-        <section className="authShell">
-          <div className="badge">
-            <span className="pulse" />
-            AI Affiliate Marketing SaaS
-          </div>
-
-          <h1>
-            AffiliateAI <span>Pro</span>
-          </h1>
-
-          <p className="subtitle">
-            Entre na sua conta para acessar o painel inteligente de afiliados.
-          </p>
-
-          <div className="authPanel">
-            <div className="panelHeader">
-              <span className="dot" />
-              {authMode === "login" ? "Login" : "Criar Conta"}
-            </div>
-
-            <div className="authTabs">
-              <button
-                className={authMode === "login" ? "active" : ""}
-                onClick={() => setAuthMode("login")}
-              >
-                Login
-              </button>
-
-              <button
-                className={authMode === "register" ? "active" : ""}
-                onClick={() => setAuthMode("register")}
-              >
-                Cadastro
-              </button>
-            </div>
-
-            <div className="authForm">
-              {authMode === "register" && (
-                <label>
-                  Nome
-                  <input
-                    value={authName}
-                    onChange={(event) => setAuthName(event.target.value)}
-                    placeholder="Seu nome"
-                  />
-                </label>
-              )}
-
-              <label>
-                Email
-                <input
-                  value={authEmail}
-                  onChange={(event) => setAuthEmail(event.target.value)}
-                  placeholder="seuemail@email.com"
-                />
-              </label>
-
-              <label>
-                Senha
-                <input
-                  type="password"
-                  value={authPassword}
-                  onChange={(event) => setAuthPassword(event.target.value)}
-                  placeholder="Sua senha"
-                />
-              </label>
-
-              <button
-                className="primaryButton authButton"
-                onClick={authMode === "login" ? login : register}
-                disabled={loading}
-              >
-                {loading
-                  ? "Processando..."
-                  : authMode === "login"
-                    ? "Entrar"
-                    : "Criar conta"}
-              </button>
-
-              {errorMessage && <p className="errorMessage">{errorMessage}</p>}
-            </div>
-          </div>
-        </section>
-      </main>
-    );
+    return new Date(date).toLocaleString("pt-BR");
   }
 
   return (
-    <main className="page">
-      <div className="gridGlow" />
+    <section className="autopilotPanel">
+      <div className="panelHeader">
+        <span className="dot" />
+        Affiliate Autopilot Agent
+      </div>
 
-      <section className="hero">
-        <div className="topBar">
-          <div>
-            <strong>{user.name}</strong>
-            <span>{user.email}</span>
+      <div className="autopilotIntro">
+        <div>
+          <h2>Autopilot Profissional de Afiliados</h2>
+          <p>
+            O sistema escolhe um produto, analisa oportunidade, monta campanha,
+            salva no banco e permite abrir campanhas antigas.
+          </p>
+        </div>
+
+        <div className="autopilotStatus">
+          <span>Modo</span>
+          <strong>Campaign Builder</strong>
+        </div>
+      </div>
+
+      <div className="autopilotControls">
+        <label>
+          Nicho
+          <input
+            value={niche}
+            onChange={(event) => setNiche(event.target.value)}
+            placeholder="Ex: beleza, fitness, casa, automotivo, pet"
+          />
+        </label>
+
+        <label>
+          Público-alvo
+          <input
+            value={targetAudience}
+            onChange={(event) => setTargetAudience(event.target.value)}
+            placeholder="Ex: mulheres de 20 a 35 anos..."
+          />
+        </label>
+
+        <label>
+          Objetivo
+          <select
+            value={objective}
+            onChange={(event) => setObjective(event.target.value)}
+          >
+            <option value="vender">Vender</option>
+            <option value="validar_produto">Validar Produto</option>
+            <option value="aquecer_audiencia">Aquecer Audiência</option>
+            <option value="capturar_lead">Capturar Lead</option>
+          </select>
+        </label>
+
+        <label>
+          Canal principal
+          <select
+            value={mainChannel}
+            onChange={(event) => setMainChannel(event.target.value)}
+          >
+            <option value="tiktok">TikTok</option>
+            <option value="instagram">Instagram</option>
+            <option value="youtube_shorts">YouTube Shorts</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="pinterest">Pinterest</option>
+            <option value="google">Google</option>
+            <option value="facebook_ads">Facebook Ads</option>
+          </select>
+        </label>
+
+        <label>
+          Orçamento
+          <select
+            value={budgetStyle}
+            onChange={(event) => setBudgetStyle(event.target.value)}
+          >
+            <option value="organico">Orgânico</option>
+            <option value="baixo_orcamento">Baixo orçamento</option>
+            <option value="trafego_pago">Tráfego pago</option>
+          </select>
+        </label>
+
+        <label>
+          Estilo da campanha
+          <select
+            value={campaignStyle}
+            onChange={(event) => setCampaignStyle(event.target.value)}
+          >
+            <option value="viral">Viral</option>
+            <option value="direto">Direto</option>
+            <option value="premium">Premium</option>
+            <option value="popular">Popular</option>
+            <option value="emocional">Emocional</option>
+            <option value="agressivo">Agressivo</option>
+          </select>
+        </label>
+
+        <button
+          className="primaryButton autopilotButton"
+          onClick={runAutopilot}
+          disabled={loading}
+        >
+          {loading ? "Montando campanha..." : "Rodar Autopilot Profissional"}
+        </button>
+      </div>
+
+      {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+
+      {result && (
+        <div className="autopilotResult">
+          <div className="autopilotScoreBox">
+            <div>
+              <span>Produto escolhido</span>
+              <strong>{result.selected_product}</strong>
+              <small>
+                {result.marketplace} • {formatDate(result.created_at)}
+              </small>
+            </div>
+
+            <div>
+              <span>Score da oportunidade</span>
+              <strong>{result.score}/100</strong>
+              <small>{result.decision}</small>
+            </div>
           </div>
 
-          <button onClick={logout}>Sair</button>
+          <div className="autopilotMetrics">
+            <div>
+              <span>Demanda</span>
+              <strong>
+                {result.campaign_package.market_analysis?.demand_score ?? "--"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Concorrência</span>
+              <strong>
+                {result.campaign_package.market_analysis?.competition_score ??
+                  "--"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Visual</span>
+              <strong>
+                {result.campaign_package.market_analysis?.visual_strength ??
+                  "--"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Impulso</span>
+              <strong>
+                {result.campaign_package.market_analysis?.impulse_buy ?? "--"}
+              </strong>
+            </div>
+          </div>
+
+          <div className="autopilotGrid">
+            <div className="autopilotCard">
+              <h3>Estratégia</h3>
+              <p>{result.strategy}</p>
+              <button onClick={() => copyText(result.strategy)}>Copiar</button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Headline</h3>
+              <p>{result.headline}</p>
+              <button onClick={() => copyText(result.headline)}>Copiar</button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Copy curta</h3>
+              <p>{result.short_copy}</p>
+              <button onClick={() => copyText(result.short_copy)}>Copiar</button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Roteiro de vídeo</h3>
+              <p>{result.video_script}</p>
+              <button onClick={() => copyText(result.video_script)}>
+                Copiar
+              </button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Brief de imagem</h3>
+              <p>{result.image_brief}</p>
+              <button onClick={() => copyText(result.image_brief)}>
+                Copiar
+              </button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Narração</h3>
+              <p>{result.voiceover_script}</p>
+              <button onClick={() => copyText(result.voiceover_script)}>
+                Copiar
+              </button>
+            </div>
+          </div>
+
+          <div className="autopilotGrid">
+            <div className="autopilotCard">
+              <h3>Hashtags</h3>
+              <p>
+                {(result.campaign_package.content_package?.hashtags ?? []).join(
+                  " "
+                )}
+              </p>
+              <button
+                onClick={() =>
+                  copyText(
+                    (
+                      result.campaign_package.content_package?.hashtags ?? []
+                    ).join(" ")
+                  )
+                }
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Plano de publicação</h3>
+              <p>
+                {result.campaign_package.publishing_plan?.posting_angle ??
+                  "Plano não disponível."}
+              </p>
+            </div>
+          </div>
+
+          <div className="autopilotCard">
+            <h3>Checklist de execução</h3>
+            <ul>
+              {result.checklist.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      <div className="autopilotHistory">
+        <div className="autopilotHistoryHeader">
+          <div>
+            <h3>Histórico do Autopilot</h3>
+            <p>Campanhas salvas automaticamente no banco.</p>
+          </div>
+
+          <button onClick={loadHistory} disabled={loadingHistory}>
+            {loadingHistory ? "Atualizando..." : "Atualizar"}
+          </button>
         </div>
 
-        <div className="badge">
-          <span className="pulse" />
-          Sistema online
-        </div>
+        {history.length === 0 ? (
+          <div className="autopilotEmpty">
+            Nenhuma campanha salva ainda. Rode o Autopilot para criar a
+            primeira.
+          </div>
+        ) : (
+          <div className="autopilotHistoryList">
+            {history.map((item) => (
+              <button
+                key={item.id}
+                className="autopilotHistoryItem"
+                onClick={() => openHistoryItem(item.id)}
+              >
+                <div>
+                  <strong>{item.selected_product}</strong>
+                  <span>
+                    {item.niche} • {item.marketplace} • {item.main_channel}
+                  </span>
+                </div>
 
-        <h1>
-          AffiliateAI <span>Pro</span>
-        </h1>
-
-        <p className="subtitle">
-          Painel inteligente para caçar oportunidades, montar campanhas e criar
-          conteúdos para afiliados.
-        </p>
-      </section>
-
-      <AffiliateAutopilotPanel />
-    </main>
+                <div>
+                  <strong>{item.score}/100</strong>
+                  <span>{item.decision}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
