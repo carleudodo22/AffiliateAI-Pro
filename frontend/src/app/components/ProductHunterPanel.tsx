@@ -21,6 +21,19 @@ type UserPreferences = {
   language?: string;
 };
 
+type UserSettingsApiResponse = {
+  id: number;
+  user_id: number;
+  default_niche: string;
+  default_channel: string;
+  default_campaign_style: string;
+  default_budget_style: string;
+  default_marketplace: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
   const [productName, setProductName] = useState("escova secadora");
   const [niche, setNiche] = useState("beleza");
@@ -32,13 +45,14 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
 
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
-    loadSavedPreferences();
+    loadUserSettings();
     loadHistory();
   }, [token]);
 
@@ -46,55 +60,138 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  function loadSavedPreferences() {
+  function mapApiSettingsToPreferences(
+    data: UserSettingsApiResponse
+  ): UserPreferences {
+    return {
+      defaultNiche: data.default_niche,
+      defaultChannel: data.default_channel,
+      defaultCampaignStyle: data.default_campaign_style,
+      defaultBudgetStyle: data.default_budget_style,
+      defaultMarketplace: data.default_marketplace,
+      language: data.language,
+    };
+  }
+
+  function saveLocalPreferences(preferences: UserPreferences) {
+    localStorage.setItem("affiliateai_preferences", JSON.stringify(preferences));
+  }
+
+  function loadLocalPreferences() {
     const savedPreferences = localStorage.getItem("affiliateai_preferences");
 
     if (!savedPreferences) {
-      return;
+      return null;
     }
 
     try {
-      const preferences = JSON.parse(savedPreferences) as UserPreferences;
-
-      if (preferences.defaultNiche) {
-        setNiche(preferences.defaultNiche);
-
-        if (preferences.defaultNiche === "beleza") {
-          setProductName("escova secadora");
-          setAveragePrice("119.90");
-          setCommissionPercent("12");
-        } else if (preferences.defaultNiche === "fitness") {
-          setProductName("mini elástico para treino");
-          setAveragePrice("39.90");
-          setCommissionPercent("12");
-        } else if (preferences.defaultNiche === "automotivo") {
-          setProductName("aspirador portátil automotivo");
-          setAveragePrice("99.90");
-          setCommissionPercent("11");
-        } else if (preferences.defaultNiche === "casa") {
-          setProductName("mini processador elétrico");
-          setAveragePrice("89.90");
-          setCommissionPercent("12");
-        } else if (preferences.defaultNiche === "pet") {
-          setProductName("escova removedora de pelos pet");
-          setAveragePrice("49.90");
-          setCommissionPercent("10");
-        } else {
-          setProductName(`produto tendência de ${preferences.defaultNiche}`);
-          setAveragePrice("79.90");
-          setCommissionPercent("10");
-        }
-      }
-
-      if (preferences.defaultMarketplace) {
-        setMarketplace(preferences.defaultMarketplace);
-      }
-
-      if (preferences.defaultChannel) {
-        setTrafficChannel(preferences.defaultChannel);
-      }
+      return JSON.parse(savedPreferences) as UserPreferences;
     } catch {
+      return null;
+    }
+  }
+
+  function applyProductPresetByNiche(selectedNiche: string) {
+    if (selectedNiche === "beleza") {
+      setProductName("escova secadora");
+      setAveragePrice("119.90");
+      setCommissionPercent("12");
       return;
+    }
+
+    if (selectedNiche === "fitness") {
+      setProductName("mini elástico para treino");
+      setAveragePrice("39.90");
+      setCommissionPercent("12");
+      return;
+    }
+
+    if (selectedNiche === "automotivo") {
+      setProductName("aspirador portátil automotivo");
+      setAveragePrice("99.90");
+      setCommissionPercent("11");
+      return;
+    }
+
+    if (selectedNiche === "casa") {
+      setProductName("mini processador elétrico");
+      setAveragePrice("89.90");
+      setCommissionPercent("12");
+      return;
+    }
+
+    if (selectedNiche === "pet") {
+      setProductName("escova removedora de pelos pet");
+      setAveragePrice("49.90");
+      setCommissionPercent("10");
+      return;
+    }
+
+    setProductName(`produto tendência de ${selectedNiche}`);
+    setAveragePrice("79.90");
+    setCommissionPercent("10");
+  }
+
+  function applyPreferences(preferences: UserPreferences) {
+    if (preferences.defaultNiche) {
+      setNiche(preferences.defaultNiche);
+      applyProductPresetByNiche(preferences.defaultNiche);
+    }
+
+    if (preferences.defaultMarketplace) {
+      setMarketplace(preferences.defaultMarketplace);
+    }
+
+    if (preferences.defaultChannel) {
+      setTrafficChannel(preferences.defaultChannel);
+    }
+  }
+
+  async function loadUserSettings() {
+    setLoadingSettings(true);
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        const localPreferences = loadLocalPreferences();
+
+        if (localPreferences) {
+          applyPreferences(localPreferences);
+        }
+
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const localPreferences = loadLocalPreferences();
+
+        if (localPreferences) {
+          applyPreferences(localPreferences);
+        }
+
+        return;
+      }
+
+      const data: UserSettingsApiResponse = await response.json();
+      const preferences = mapApiSettingsToPreferences(data);
+
+      saveLocalPreferences(preferences);
+      applyPreferences(preferences);
+    } catch {
+      const localPreferences = loadLocalPreferences();
+
+      if (localPreferences) {
+        applyPreferences(localPreferences);
+      }
+    } finally {
+      setLoadingSettings(false);
     }
   }
 
@@ -278,17 +375,19 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
       <div className="hunterHeader">
         <div>
           <span className="hunterEyebrow">Product Hunter Agent</span>
+
           <h2>Caçador de Produtos</h2>
+
           <p>
             Analise produtos para afiliados com score, demanda, concorrência,
-            comissão, risco e estratégia de venda. Agora ele também puxa nicho,
-            marketplace e canal salvos nas Configurações.
+            comissão, risco e estratégia de venda. Agora ele busca nicho,
+            marketplace e canal direto da API de configurações do usuário.
           </p>
         </div>
 
         <div className="hunterStatus">
-          <span>Modo</span>
-          <strong>Opportunity Scanner</strong>
+          <span>Configurações</span>
+          <strong>{loadingSettings ? "Sincronizando" : "Sincronizadas"}</strong>
         </div>
       </div>
 
@@ -375,7 +474,7 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
         <button
           className="primaryButton hunterButton"
           onClick={analyzeProduct}
-          disabled={loading}
+          disabled={loading || loadingSettings}
         >
           {loading ? "Analisando produto..." : "Analisar Produto"}
         </button>

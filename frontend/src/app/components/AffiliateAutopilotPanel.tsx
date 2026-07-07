@@ -86,6 +86,19 @@ type UserPreferences = {
   language?: string;
 };
 
+type UserSettingsApiResponse = {
+  id: number;
+  user_id: number;
+  default_niche: string;
+  default_channel: string;
+  default_campaign_style: string;
+  default_budget_style: string;
+  default_marketplace: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function AffiliateAutopilotPanel({
   token,
 }: AffiliateAutopilotPanelProps) {
@@ -100,13 +113,14 @@ export default function AffiliateAutopilotPanel({
 
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const [result, setResult] = useState<AutopilotResult | null>(null);
   const [history, setHistory] = useState<AutopilotHistoryItem[]>([]);
 
   useEffect(() => {
-    loadSavedPreferences();
+    loadUserSettings();
     loadHistory();
   }, [token]);
 
@@ -114,36 +128,120 @@ export default function AffiliateAutopilotPanel({
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  function loadSavedPreferences() {
+  function mapApiSettingsToPreferences(
+    data: UserSettingsApiResponse
+  ): UserPreferences {
+    return {
+      defaultNiche: data.default_niche,
+      defaultChannel: data.default_channel,
+      defaultCampaignStyle: data.default_campaign_style,
+      defaultBudgetStyle: data.default_budget_style,
+      defaultMarketplace: data.default_marketplace,
+      language: data.language,
+    };
+  }
+
+  function saveLocalPreferences(preferences: UserPreferences) {
+    localStorage.setItem("affiliateai_preferences", JSON.stringify(preferences));
+  }
+
+  function loadLocalPreferences() {
     const savedPreferences = localStorage.getItem("affiliateai_preferences");
 
     if (!savedPreferences) {
-      return;
+      return null;
     }
 
     try {
-      const preferences = JSON.parse(savedPreferences) as UserPreferences;
-
-      if (preferences.defaultNiche) {
-        setNiche(preferences.defaultNiche);
-        setTargetAudience(
-          `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
-        );
-      }
-
-      if (preferences.defaultChannel) {
-        setMainChannel(preferences.defaultChannel);
-      }
-
-      if (preferences.defaultCampaignStyle) {
-        setCampaignStyle(preferences.defaultCampaignStyle);
-      }
-
-      if (preferences.defaultBudgetStyle) {
-        setBudgetStyle(preferences.defaultBudgetStyle);
-      }
+      return JSON.parse(savedPreferences) as UserPreferences;
     } catch {
-      return;
+      return null;
+    }
+  }
+
+  function normalizeCampaignStyle(style?: string) {
+    const allowedStyles = [
+      "direto",
+      "viral",
+      "premium",
+      "popular",
+      "emocional",
+      "agressivo",
+    ];
+
+    if (style && allowedStyles.includes(style)) {
+      return style;
+    }
+
+    return "viral";
+  }
+
+  function applyPreferences(preferences: UserPreferences) {
+    if (preferences.defaultNiche) {
+      setNiche(preferences.defaultNiche);
+      setTargetAudience(
+        `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
+      );
+    }
+
+    if (preferences.defaultChannel) {
+      setMainChannel(preferences.defaultChannel);
+    }
+
+    if (preferences.defaultCampaignStyle) {
+      setCampaignStyle(normalizeCampaignStyle(preferences.defaultCampaignStyle));
+    }
+
+    if (preferences.defaultBudgetStyle) {
+      setBudgetStyle(preferences.defaultBudgetStyle);
+    }
+  }
+
+  async function loadUserSettings() {
+    setLoadingSettings(true);
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        const localPreferences = loadLocalPreferences();
+
+        if (localPreferences) {
+          applyPreferences(localPreferences);
+        }
+
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const localPreferences = loadLocalPreferences();
+
+        if (localPreferences) {
+          applyPreferences(localPreferences);
+        }
+
+        return;
+      }
+
+      const data: UserSettingsApiResponse = await response.json();
+      const preferences = mapApiSettingsToPreferences(data);
+
+      saveLocalPreferences(preferences);
+      applyPreferences(preferences);
+    } catch {
+      const localPreferences = loadLocalPreferences();
+
+      if (localPreferences) {
+        applyPreferences(localPreferences);
+      }
+    } finally {
+      setLoadingSettings(false);
     }
   }
 
@@ -291,13 +389,13 @@ export default function AffiliateAutopilotPanel({
           <p>
             O sistema escolhe um produto, analisa oportunidade, monta campanha,
             salva no banco e permite abrir campanhas antigas. Agora ele também
-            puxa os padrões salvos nas Configurações.
+            busca as preferências direto da API de configurações do usuário.
           </p>
         </div>
 
         <div className="autopilotStatus">
-          <span>Modo</span>
-          <strong>Campaign Builder</strong>
+          <span>Configurações</span>
+          <strong>{loadingSettings ? "Sincronizando" : "Sincronizadas"}</strong>
         </div>
       </div>
 
@@ -379,7 +477,7 @@ export default function AffiliateAutopilotPanel({
         <button
           className="primaryButton autopilotButton"
           onClick={runAutopilot}
-          disabled={loading}
+          disabled={loading || loadingSettings}
         >
           {loading ? "Montando campanha..." : "Rodar Autopilot Profissional"}
         </button>

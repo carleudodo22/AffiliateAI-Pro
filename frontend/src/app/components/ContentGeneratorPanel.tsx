@@ -19,6 +19,19 @@ type UserPreferences = {
   language?: string;
 };
 
+type UserSettingsApiResponse = {
+  id: number;
+  user_id: number;
+  default_niche: string;
+  default_channel: string;
+  default_campaign_style: string;
+  default_budget_style: string;
+  default_marketplace: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export default function ContentGeneratorPanel({
   token,
 }: ContentGeneratorPanelProps) {
@@ -32,57 +45,175 @@ export default function ContentGeneratorPanel({
   const [objective, setObjective] = useState("vender");
 
   const [loading, setLoading] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<ContentResult | null>(null);
 
   useEffect(() => {
-    loadSavedPreferences();
+    loadUserSettings();
   }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  function loadSavedPreferences() {
+  function mapApiSettingsToPreferences(
+    data: UserSettingsApiResponse
+  ): UserPreferences {
+    return {
+      defaultNiche: data.default_niche,
+      defaultChannel: data.default_channel,
+      defaultCampaignStyle: data.default_campaign_style,
+      defaultBudgetStyle: data.default_budget_style,
+      defaultMarketplace: data.default_marketplace,
+      language: data.language,
+    };
+  }
+
+  function saveLocalPreferences(preferences: UserPreferences) {
+    localStorage.setItem("affiliateai_preferences", JSON.stringify(preferences));
+  }
+
+  function loadLocalPreferences() {
     const savedPreferences = localStorage.getItem("affiliateai_preferences");
 
     if (!savedPreferences) {
-      return;
+      return null;
     }
 
     try {
-      const preferences = JSON.parse(savedPreferences) as UserPreferences;
-
-      if (preferences.defaultNiche) {
-        setNiche(preferences.defaultNiche);
-        setTargetAudience(
-          `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
-        );
-
-        if (preferences.defaultNiche === "beleza") {
-          setProductName("escova secadora");
-        } else if (preferences.defaultNiche === "fitness") {
-          setProductName("mini elástico para treino");
-        } else if (preferences.defaultNiche === "automotivo") {
-          setProductName("aspirador portátil automotivo");
-        } else if (preferences.defaultNiche === "casa") {
-          setProductName("mini processador elétrico");
-        } else if (preferences.defaultNiche === "pet") {
-          setProductName("escova removedora de pelos pet");
-        } else {
-          setProductName(`produto tendência de ${preferences.defaultNiche}`);
-        }
-      }
-
-      if (preferences.defaultChannel) {
-        setPlatform(preferences.defaultChannel);
-      }
-
-      if (preferences.defaultCampaignStyle) {
-        setTone(preferences.defaultCampaignStyle);
-      }
+      return JSON.parse(savedPreferences) as UserPreferences;
     } catch {
+      return null;
+    }
+  }
+
+  function normalizePlatform(savedPlatform?: string) {
+    const allowedPlatforms = [
+      "tiktok",
+      "instagram",
+      "youtube_shorts",
+      "whatsapp",
+      "facebook_ads",
+      "google",
+    ];
+
+    if (savedPlatform && allowedPlatforms.includes(savedPlatform)) {
+      return savedPlatform;
+    }
+
+    return "tiktok";
+  }
+
+  function normalizeTone(savedTone?: string) {
+    const allowedTones = [
+      "viral",
+      "direto",
+      "premium",
+      "emocional",
+      "agressivo",
+      "popular",
+    ];
+
+    if (savedTone && allowedTones.includes(savedTone)) {
+      return savedTone;
+    }
+
+    return "viral";
+  }
+
+  function applyProductPresetByNiche(selectedNiche: string) {
+    if (selectedNiche === "beleza") {
+      setProductName("escova secadora");
       return;
+    }
+
+    if (selectedNiche === "fitness") {
+      setProductName("mini elástico para treino");
+      return;
+    }
+
+    if (selectedNiche === "automotivo") {
+      setProductName("aspirador portátil automotivo");
+      return;
+    }
+
+    if (selectedNiche === "casa") {
+      setProductName("mini processador elétrico");
+      return;
+    }
+
+    if (selectedNiche === "pet") {
+      setProductName("escova removedora de pelos pet");
+      return;
+    }
+
+    setProductName(`produto tendência de ${selectedNiche}`);
+  }
+
+  function applyPreferences(preferences: UserPreferences) {
+    if (preferences.defaultNiche) {
+      setNiche(preferences.defaultNiche);
+      setTargetAudience(
+        `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
+      );
+      applyProductPresetByNiche(preferences.defaultNiche);
+    }
+
+    if (preferences.defaultChannel) {
+      setPlatform(normalizePlatform(preferences.defaultChannel));
+    }
+
+    if (preferences.defaultCampaignStyle) {
+      setTone(normalizeTone(preferences.defaultCampaignStyle));
+    }
+  }
+
+  async function loadUserSettings() {
+    setLoadingSettings(true);
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        const localPreferences = loadLocalPreferences();
+
+        if (localPreferences) {
+          applyPreferences(localPreferences);
+        }
+
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const localPreferences = loadLocalPreferences();
+
+        if (localPreferences) {
+          applyPreferences(localPreferences);
+        }
+
+        return;
+      }
+
+      const data: UserSettingsApiResponse = await response.json();
+      const preferences = mapApiSettingsToPreferences(data);
+
+      saveLocalPreferences(preferences);
+      applyPreferences(preferences);
+    } catch {
+      const localPreferences = loadLocalPreferences();
+
+      if (localPreferences) {
+        applyPreferences(localPreferences);
+      }
+    } finally {
+      setLoadingSettings(false);
     }
   }
 
@@ -137,34 +268,25 @@ export default function ContentGeneratorPanel({
         objective,
       };
 
-      const endpoints = [
-        `${API_URL}/api/content-generator/generate`,
-        `${API_URL}/api/content_generator/generate`,
-        `${API_URL}/api/content/generate`,
-      ];
+      const response = await fetch(`${API_URL}/api/content-generator/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-      let lastError = "";
-
-      for (const endpoint of endpoints) {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${currentToken}`,
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setResult(data);
-          return;
-        }
-
-        lastError = await response.text();
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
       }
 
-      throw new Error(lastError || "Erro ao gerar conteúdo.");
+      const data = await response.json();
+
+      setResult(data);
+
+      window.dispatchEvent(new Event("content-generator-history-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -247,8 +369,8 @@ export default function ContentGeneratorPanel({
           <p>
             Crie um pacote completo de conteúdo para afiliados com headline,
             copy, legenda, roteiro, CTA, hashtags, WhatsApp e variações de
-            anúncio. Agora ele também puxa nicho, canal e estilo salvos nas
-            Configurações.
+            anúncio. Agora ele busca nicho, canal e estilo direto da API de
+            configurações do usuário.
           </p>
 
           <div className="contentHeroStats">
@@ -263,16 +385,16 @@ export default function ContentGeneratorPanel({
             </div>
 
             <div>
-              <strong>CTA</strong>
-              <span>foco em conversão</span>
+              <strong>API</strong>
+              <span>{loadingSettings ? "sincronizando" : "sincronizada"}</span>
             </div>
           </div>
         </div>
 
         <div className="contentStatus">
-          <span>Modo ativo</span>
-          <strong>Creative Builder</strong>
-          <p>Pronto para montar campanhas rápidas para TikTok, Reels e Shorts.</p>
+          <span>Configurações</span>
+          <strong>{loadingSettings ? "Sincronizando" : "Sincronizadas"}</strong>
+          <p>Preferências carregadas direto do banco do usuário.</p>
         </div>
       </div>
 
@@ -367,7 +489,7 @@ export default function ContentGeneratorPanel({
         <button
           className="primaryButton contentButton"
           onClick={generateContent}
-          disabled={loading}
+          disabled={loading || loadingSettings}
         >
           {loading ? "Gerando conteúdo..." : "Gerar Pacote de Conteúdo"}
         </button>
@@ -411,7 +533,7 @@ export default function ContentGeneratorPanel({
             <div>
               <span>Status</span>
               <strong>Pronto</strong>
-              <small>Copie e use na campanha</small>
+              <small>Salvo no histórico</small>
             </div>
           </div>
 
