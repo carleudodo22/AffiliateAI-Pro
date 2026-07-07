@@ -1,599 +1,632 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type ContentGeneratorPanelProps = {
+type CampaignPackagePanelProps = {
   token: string;
 };
 
-type ContentResult = Record<string, any>;
+type AnyData = Record<string, any>;
 
-type UserPreferences = {
-  defaultNiche?: string;
-  defaultChannel?: string;
-  defaultCampaignStyle?: string;
-  defaultBudgetStyle?: string;
-  defaultMarketplace?: string;
-  language?: string;
-};
-
-type UserSettingsApiResponse = {
-  id: number;
-  user_id: number;
-  default_niche: string;
-  default_channel: string;
-  default_campaign_style: string;
-  default_budget_style: string;
-  default_marketplace: string;
-  language: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export default function ContentGeneratorPanel({
-  token,
-}: ContentGeneratorPanelProps) {
-  const [productName, setProductName] = useState("escova secadora");
-  const [niche, setNiche] = useState("beleza");
-  const [targetAudience, setTargetAudience] = useState(
-    "mulheres de 20 a 35 anos interessadas em autocuidado"
-  );
-  const [platform, setPlatform] = useState("tiktok");
-  const [tone, setTone] = useState("viral");
-  const [objective, setObjective] = useState("vender");
+export default function CampaignPackagePanel({ token }: CampaignPackagePanelProps) {
+  const [autopilot, setAutopilot] = useState<AnyData | null>(null);
+  const [productHunter, setProductHunter] = useState<AnyData | null>(null);
+  const [contentGenerator, setContentGenerator] = useState<AnyData | null>(null);
+  const [creativeImage, setCreativeImage] = useState<AnyData | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [loadingSettings, setLoadingSettings] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [result, setResult] = useState<ContentResult | null>(null);
+  const [copyMessage, setCopyMessage] = useState("");
 
   useEffect(() => {
-    loadUserSettings();
+    loadPackage();
   }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  function mapApiSettingsToPreferences(
-    data: UserSettingsApiResponse
-  ): UserPreferences {
-    return {
-      defaultNiche: data.default_niche,
-      defaultChannel: data.default_channel,
-      defaultCampaignStyle: data.default_campaign_style,
-      defaultBudgetStyle: data.default_budget_style,
-      defaultMarketplace: data.default_marketplace,
-      language: data.language,
-    };
-  }
+  async function fetchLatestDetail(
+    historyEndpoint: string,
+    detailEndpoint: string
+  ) {
+    const currentToken = getToken();
 
-  function saveLocalPreferences(preferences: UserPreferences) {
-    localStorage.setItem("affiliateai_preferences", JSON.stringify(preferences));
-  }
+    const historyResponse = await fetch(`${API_URL}${historyEndpoint}`, {
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+      },
+    });
 
-  function loadLocalPreferences() {
-    const savedPreferences = localStorage.getItem("affiliateai_preferences");
-
-    if (!savedPreferences) {
+    if (!historyResponse.ok) {
       return null;
     }
 
-    try {
-      return JSON.parse(savedPreferences) as UserPreferences;
-    } catch {
+    const historyData = await historyResponse.json();
+
+    if (!Array.isArray(historyData) || historyData.length === 0) {
       return null;
     }
+
+    const latestItem = historyData[0];
+    const id = latestItem.id ?? latestItem.analysis_id;
+
+    if (!id) {
+      return latestItem;
+    }
+
+    const detailResponse = await fetch(`${API_URL}${detailEndpoint}/${id}`, {
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+      },
+    });
+
+    if (!detailResponse.ok) {
+      return latestItem;
+    }
+
+    return await detailResponse.json();
   }
 
-  function normalizePlatform(savedPlatform?: string) {
-    const allowedPlatforms = [
-      "tiktok",
-      "instagram",
-      "youtube_shorts",
-      "whatsapp",
-      "facebook_ads",
-      "google",
-    ];
-
-    if (savedPlatform && allowedPlatforms.includes(savedPlatform)) {
-      return savedPlatform;
-    }
-
-    return "tiktok";
-  }
-
-  function normalizeTone(savedTone?: string) {
-    const allowedTones = [
-      "viral",
-      "direto",
-      "premium",
-      "emocional",
-      "agressivo",
-      "popular",
-    ];
-
-    if (savedTone && allowedTones.includes(savedTone)) {
-      return savedTone;
-    }
-
-    return "viral";
-  }
-
-  function applyProductPresetByNiche(selectedNiche: string) {
-    if (selectedNiche === "beleza") {
-      setProductName("escova secadora");
-      return;
-    }
-
-    if (selectedNiche === "fitness") {
-      setProductName("mini elástico para treino");
-      return;
-    }
-
-    if (selectedNiche === "automotivo") {
-      setProductName("aspirador portátil automotivo");
-      return;
-    }
-
-    if (selectedNiche === "casa") {
-      setProductName("mini processador elétrico");
-      return;
-    }
-
-    if (selectedNiche === "pet") {
-      setProductName("escova removedora de pelos pet");
-      return;
-    }
-
-    setProductName(`produto tendência de ${selectedNiche}`);
-  }
-
-  function applyPreferences(preferences: UserPreferences) {
-    if (preferences.defaultNiche) {
-      setNiche(preferences.defaultNiche);
-      setTargetAudience(
-        `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
-      );
-      applyProductPresetByNiche(preferences.defaultNiche);
-    }
-
-    if (preferences.defaultChannel) {
-      setPlatform(normalizePlatform(preferences.defaultChannel));
-    }
-
-    if (preferences.defaultCampaignStyle) {
-      setTone(normalizeTone(preferences.defaultCampaignStyle));
-    }
-  }
-
-  async function loadUserSettings() {
-    setLoadingSettings(true);
-
-    try {
-      const currentToken = getToken();
-
-      if (!currentToken) {
-        const localPreferences = loadLocalPreferences();
-
-        if (localPreferences) {
-          applyPreferences(localPreferences);
-        }
-
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/api/user-settings/me`, {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const localPreferences = loadLocalPreferences();
-
-        if (localPreferences) {
-          applyPreferences(localPreferences);
-        }
-
-        return;
-      }
-
-      const data: UserSettingsApiResponse = await response.json();
-      const preferences = mapApiSettingsToPreferences(data);
-
-      saveLocalPreferences(preferences);
-      applyPreferences(preferences);
-    } catch {
-      const localPreferences = loadLocalPreferences();
-
-      if (localPreferences) {
-        applyPreferences(localPreferences);
-      }
-    } finally {
-      setLoadingSettings(false);
-    }
-  }
-
-  function getValue(keys: string[], fallback: string) {
-    if (!result) return fallback;
-
-    for (const key of keys) {
-      const value = key.split(".").reduce<any>((acc, part) => {
-        if (!acc) return undefined;
-        return acc[part];
-      }, result);
-
-      if (value) return value;
-    }
-
-    return fallback;
-  }
-
-  function getList(keys: string[], fallback: string[]) {
-    if (!result) return fallback;
-
-    for (const key of keys) {
-      const value = key.split(".").reduce<any>((acc, part) => {
-        if (!acc) return undefined;
-        return acc[part];
-      }, result);
-
-      if (Array.isArray(value)) return value;
-    }
-
-    return fallback;
-  }
-
-  async function generateContent() {
+  async function loadPackage() {
     setLoading(true);
     setErrorMessage("");
-    setResult(null);
+    setCopyMessage("");
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para gerar conteúdo.");
+        throw new Error("Você precisa estar logado para montar o pacote.");
       }
 
-      const payload = {
-        product_name: productName,
-        niche,
-        target_audience: targetAudience,
-        platform,
-        tone,
-        objective,
-      };
+      const [
+        autopilotResult,
+        productHunterResult,
+        contentGeneratorResult,
+        creativeImageResult,
+      ] = await Promise.allSettled([
+        fetchLatestDetail("/api/autopilot/history", "/api/autopilot"),
+        fetchLatestDetail("/api/product-hunter/history", "/api/product-hunter"),
+        fetchLatestDetail(
+          "/api/content-generator/history",
+          "/api/content-generator"
+        ),
+        fetchLatestDetail("/api/creative-image/history", "/api/creative-image"),
+      ]);
 
-      const response = await fetch(`${API_URL}/api/content-generator/generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      setAutopilot(
+        autopilotResult.status === "fulfilled" ? autopilotResult.value : null
+      );
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text);
-      }
+      setProductHunter(
+        productHunterResult.status === "fulfilled"
+          ? productHunterResult.value
+          : null
+      );
 
-      const data = await response.json();
+      setContentGenerator(
+        contentGeneratorResult.status === "fulfilled"
+          ? contentGeneratorResult.value
+          : null
+      );
 
-      setResult(data);
-
-      window.dispatchEvent(new Event("content-generator-history-updated"));
+      setCreativeImage(
+        creativeImageResult.status === "fulfilled"
+          ? creativeImageResult.value
+          : null
+      );
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao gerar conteúdo.");
+        setErrorMessage("Erro ao montar pacote de campanha.");
       }
+
+      setAutopilot(null);
+      setProductHunter(null);
+      setContentGenerator(null);
+      setCreativeImage(null);
     } finally {
       setLoading(false);
     }
   }
 
-  function copyText(text: string) {
+  function copyText(text: string, message = "Copiado com sucesso.") {
     navigator.clipboard.writeText(text);
+    setCopyMessage(message);
   }
 
-  const headline = getValue(
-    ["headline", "content.headline", "generated_content.headline"],
-    `Conheça o ${productName}`
-  );
+  function getValue(data: AnyData | null, keys: string[], fallback = "") {
+    if (!data) return fallback;
 
-  const shortCopy = getValue(
-    ["short_copy", "copy", "content.short_copy", "generated_content.short_copy"],
-    `Se você está no nicho de ${niche}, o ${productName} pode ser uma solução prática para facilitar sua rotina.`
-  );
+    for (const key of keys) {
+      const value = key.split(".").reduce<any>((acc, part) => {
+        if (!acc) return undefined;
+        return acc[part];
+      }, data);
 
-  const caption = getValue(
-    ["caption", "legend", "content.caption", "generated_content.caption"],
-    `Esse produto está chamando atenção no nicho de ${niche}. Veja se faz sentido para você e confira a oferta.`
-  );
+      if (value) return String(value);
+    }
 
-  const videoScript = getValue(
-    [
-      "video_script",
-      "script",
-      "content.video_script",
-      "generated_content.video_script",
-    ],
-    `CENA 1: Mostre uma dor do público. CENA 2: Apresente o ${productName}. CENA 3: Mostre benefícios rápidos. CENA 4: Finalize com CTA.`
-  );
+    return fallback;
+  }
 
-  const whatsappText = getValue(
-    ["whatsapp_text", "whatsapp", "content.whatsapp_text"],
-    `Olha esse produto que encontrei: ${productName}. Pode ser uma boa opção para quem busca praticidade no nicho de ${niche}.`
-  );
+  function getList(data: AnyData | null, keys: string[], fallback: string[] = []) {
+    if (!data) return fallback;
 
-  const cta = getValue(
-    ["cta", "content.cta", "generated_content.cta"],
-    "Clique no link e confira a oferta."
-  );
+    for (const key of keys) {
+      const value = key.split(".").reduce<any>((acc, part) => {
+        if (!acc) return undefined;
+        return acc[part];
+      }, data);
 
-  const hashtags = getList(
-    ["hashtags", "content.hashtags", "generated_content.hashtags"],
-    [
-      "#afiliados",
-      "#marketingdigital",
-      "#achadinhos",
-      "#oferta",
-      `#${niche.replace(" ", "")}`,
-      `#${productName.replace(" ", "")}`,
-    ]
-  );
+      if (Array.isArray(value)) {
+        return value.map(String);
+      }
+    }
 
-  const adVariations = getList(
-    ["ad_variations", "ads", "content.ad_variations"],
-    [
-      `Variação 1: ${productName} para quem quer praticidade no dia a dia.`,
-      `Variação 2: Veja por que esse produto está chamando atenção no nicho de ${niche}.`,
-      `Variação 3: Uma solução simples para quem busca resultado rápido.`,
-    ]
-  );
+    return fallback;
+  }
+
+  const packageText = useMemo(() => {
+    const productName =
+      getValue(autopilot, ["selected_product"]) ||
+      getValue(contentGenerator, ["product_name"]) ||
+      getValue(creativeImage, ["product_name"]) ||
+      getValue(productHunter, ["product_name", "product.name", "name"]) ||
+      "Produto ainda não definido";
+
+    const niche =
+      getValue(autopilot, ["niche"]) ||
+      getValue(contentGenerator, ["niche"]) ||
+      getValue(creativeImage, ["niche"]) ||
+      getValue(productHunter, ["niche", "category"]) ||
+      "Nicho ainda não definido";
+
+    const marketplace =
+      getValue(autopilot, ["marketplace"]) ||
+      getValue(productHunter, ["marketplace"]) ||
+      "Marketplace não definido";
+
+    const score =
+      getValue(autopilot, ["score"]) ||
+      getValue(productHunter, [
+        "score.final_score",
+        "final_score",
+        "score",
+        "analysis.score.final_score",
+      ]) ||
+      "--";
+
+    const decision =
+      getValue(autopilot, ["decision"]) ||
+      getValue(productHunter, ["decision", "analysis.decision"]) ||
+      "Decisão ainda não definida";
+
+    const strategy = getValue(autopilot, ["strategy"], "Estratégia não gerada.");
+
+    const headline =
+      getValue(contentGenerator, ["headline"]) ||
+      getValue(autopilot, ["headline"]) ||
+      "Headline não gerada.";
+
+    const shortCopy =
+      getValue(contentGenerator, ["short_copy"]) ||
+      getValue(autopilot, ["short_copy"]) ||
+      "Copy curta não gerada.";
+
+    const caption = getValue(
+      contentGenerator,
+      ["caption"],
+      "Legenda não gerada."
+    );
+
+    const videoScript =
+      getValue(contentGenerator, ["video_script"]) ||
+      getValue(autopilot, ["video_script"]) ||
+      "Roteiro não gerado.";
+
+    const whatsappText = getValue(
+      contentGenerator,
+      ["whatsapp_text"],
+      "Texto para WhatsApp não gerado."
+    );
+
+    const cta =
+      getValue(contentGenerator, ["cta"]) ||
+      getValue(creativeImage, ["cta"]) ||
+      "CTA não gerado.";
+
+    const hashtags = getList(contentGenerator, ["hashtags"]).join(" ");
+
+    const artHeadline = getValue(
+      creativeImage,
+      ["art_headline"],
+      "Título da arte não gerado."
+    );
+
+    const artSubtitle = getValue(
+      creativeImage,
+      ["art_subtitle"],
+      "Subtítulo da arte não gerado."
+    );
+
+    const visualBrief = getValue(
+      creativeImage,
+      ["visual_brief"],
+      "Briefing visual não gerado."
+    );
+
+    const imagePrompt = getValue(
+      creativeImage,
+      ["image_prompt"],
+      "Prompt de imagem não gerado."
+    );
+
+    const negativePrompt = getValue(
+      creativeImage,
+      ["negative_prompt"],
+      "Negative prompt não gerado."
+    );
+
+    const checklist = [
+      ...getList(autopilot, ["checklist"]),
+      ...getList(creativeImage, ["checklist"]),
+    ];
+
+    return `PACOTE DE CAMPANHA - AFFILIATEAI PRO
+
+PRODUTO:
+${productName}
+
+NICHO:
+${niche}
+
+MARKETPLACE:
+${marketplace}
+
+SCORE:
+${score}/100
+
+DECISÃO:
+${decision}
+
+ESTRATÉGIA:
+${strategy}
+
+HEADLINE:
+${headline}
+
+COPY CURTA:
+${shortCopy}
+
+LEGENDA:
+${caption}
+
+ROTEIRO DE VÍDEO:
+${videoScript}
+
+TEXTO PARA WHATSAPP:
+${whatsappText}
+
+CTA:
+${cta}
+
+HASHTAGS:
+${hashtags || "Hashtags não geradas."}
+
+TEXTO DA ARTE:
+Título: ${artHeadline}
+Subtítulo: ${artSubtitle}
+CTA visual: ${getValue(creativeImage, ["cta"], cta)}
+
+BRIEFING VISUAL:
+${visualBrief}
+
+PROMPT DE IMAGEM:
+${imagePrompt}
+
+NEGATIVE PROMPT:
+${negativePrompt}
+
+CHECKLIST:
+${
+  checklist.length > 0
+    ? checklist.map((item, index) => `${index + 1}. ${item}`).join("\n")
+    : "Checklist não gerado."
+}
+
+GERADO PELO:
+AffiliateAI Pro - MVP Local`;
+  }, [autopilot, productHunter, contentGenerator, creativeImage]);
+
+  const hasAnyData = autopilot || productHunter || contentGenerator || creativeImage;
+
+  function getExportFileName() {
+    const productName =
+      getValue(autopilot, ["selected_product"]) ||
+      getValue(contentGenerator, ["product_name"]) ||
+      getValue(creativeImage, ["product_name"]) ||
+      "campanha";
+
+    const cleanProductName = productName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const date = new Date().toISOString().slice(0, 10);
+
+    return `affiliateai-${cleanProductName || "campanha"}-${date}.txt`;
+  }
+
+  function exportTxtFile() {
+    if (!hasAnyData) {
+      setErrorMessage("Gere ou carregue uma campanha antes de exportar.");
+      return;
+    }
+
+    const blob = new Blob([packageText], {
+      type: "text/plain;charset=utf-8",
+    });
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+
+    downloadLink.href = downloadUrl;
+    downloadLink.download = getExportFileName();
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+
+    URL.revokeObjectURL(downloadUrl);
+
+    setCopyMessage("Campanha exportada em .TXT com sucesso.");
+  }
 
   return (
-    <section className="contentPanel">
-      <div className="contentHeader">
-        <div className="contentHeaderMain">
-          <span className="contentEyebrow">Content Generator Agent</span>
+    <section className="packagePanel">
+      <div className="packageHeader">
+        <div>
+          <span className="packageEyebrow">Campaign Package</span>
 
-          <h2>Gerador de Conteúdo</h2>
+          <h2>Pacote Completo de Campanha</h2>
 
           <p>
-            Crie um pacote completo de conteúdo para afiliados com headline,
-            copy, legenda, roteiro, CTA, hashtags, WhatsApp e variações de
-            anúncio. Agora ele busca nicho, canal e estilo direto da API de
-            configurações do usuário.
+            Junte automaticamente a última campanha, análise, conteúdo e criativo
+            visual em uma entrega única pronta para copiar, postar ou exportar
+            como arquivo.
           </p>
-
-          <div className="contentHeroStats">
-            <div>
-              <strong>8+</strong>
-              <span>formatos gerados</span>
-            </div>
-
-            <div>
-              <strong>9:16</strong>
-              <span>pensado para vídeos curtos</span>
-            </div>
-
-            <div>
-              <strong>API</strong>
-              <span>{loadingSettings ? "sincronizando" : "sincronizada"}</span>
-            </div>
-          </div>
         </div>
 
-        <div className="contentStatus">
-          <span>Configurações</span>
-          <strong>{loadingSettings ? "Sincronizando" : "Sincronizadas"}</strong>
-          <p>Preferências carregadas direto do banco do usuário.</p>
+        <div className="packageStatus">
+          <span>Status</span>
+          <strong>{loading ? "Montando" : "Pronto"}</strong>
+          <p>Usando os últimos dados salvos no histórico.</p>
         </div>
       </div>
 
-      <div className="contentFeatureGrid">
-        <div>
-          <span>01</span>
-          <strong>Copy de venda</strong>
-          <p>Texto curto, direto e pronto para usar na oferta.</p>
-        </div>
-
-        <div>
-          <span>02</span>
-          <strong>Roteiro de vídeo</strong>
-          <p>Estrutura rápida para vídeo de afiliado com começo, meio e CTA.</p>
-        </div>
-
-        <div>
-          <span>03</span>
-          <strong>Pacote social</strong>
-          <p>Legenda, hashtags, WhatsApp e variações para anúncios.</p>
-        </div>
-      </div>
-
-      <div className="contentControls">
-        <label>
-          Produto
-          <input
-            value={productName}
-            onChange={(event) => setProductName(event.target.value)}
-            placeholder="Ex: escova secadora"
-          />
-        </label>
-
-        <label>
-          Nicho
-          <input
-            value={niche}
-            onChange={(event) => setNiche(event.target.value)}
-            placeholder="Ex: beleza"
-          />
-        </label>
-
-        <label className="contentWide">
-          Público-alvo
-          <input
-            value={targetAudience}
-            onChange={(event) => setTargetAudience(event.target.value)}
-            placeholder="Ex: mulheres de 20 a 35 anos..."
-          />
-        </label>
-
-        <label>
-          Plataforma
-          <select
-            value={platform}
-            onChange={(event) => setPlatform(event.target.value)}
-          >
-            <option value="tiktok">TikTok</option>
-            <option value="instagram">Instagram</option>
-            <option value="youtube_shorts">YouTube Shorts</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="facebook_ads">Facebook Ads</option>
-            <option value="google">Google</option>
-          </select>
-        </label>
-
-        <label>
-          Tom
-          <select value={tone} onChange={(event) => setTone(event.target.value)}>
-            <option value="viral">Viral</option>
-            <option value="direto">Direto</option>
-            <option value="premium">Premium</option>
-            <option value="emocional">Emocional</option>
-            <option value="agressivo">Agressivo</option>
-            <option value="popular">Popular</option>
-          </select>
-        </label>
-
-        <label>
-          Objetivo
-          <select
-            value={objective}
-            onChange={(event) => setObjective(event.target.value)}
-          >
-            <option value="vender">Vender</option>
-            <option value="capturar_lead">Capturar lead</option>
-            <option value="aquecer_audiencia">Aquecer audiência</option>
-            <option value="validar_produto">Validar produto</option>
-          </select>
-        </label>
+      <div className="packageActions">
+        <button onClick={loadPackage} disabled={loading}>
+          {loading ? "Atualizando..." : "Atualizar pacote"}
+        </button>
 
         <button
-          className="primaryButton contentButton"
-          onClick={generateContent}
-          disabled={loading || loadingSettings}
+          className="primaryButton"
+          onClick={() =>
+            copyText(packageText, "Campanha completa copiada.")
+          }
+          disabled={!hasAnyData}
         >
-          {loading ? "Gerando conteúdo..." : "Gerar Pacote de Conteúdo"}
+          Copiar campanha completa
+        </button>
+
+        <button onClick={exportTxtFile} disabled={!hasAnyData}>
+          Exportar campanha .TXT
         </button>
       </div>
 
       {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+      {copyMessage && <p className="successMessage">{copyMessage}</p>}
 
-      {!result && (
-        <div className="contentPreviewPanel">
-          <div>
-            <span>Prévia do pacote</span>
-            <h3>O que será criado</h3>
-            <p>
-              Depois de clicar em gerar, o agente vai montar um pacote completo
-              para usar na campanha do produto informado.
-            </p>
-          </div>
-
-          <div className="contentPreviewList">
-            <div>Headline de impacto</div>
-            <div>Copy curta de venda</div>
-            <div>Legenda para rede social</div>
-            <div>Roteiro de vídeo curto</div>
-            <div>Texto para WhatsApp</div>
-            <div>CTA e hashtags</div>
-          </div>
+      {!hasAnyData && !loading && (
+        <div className="packageEmpty">
+          Gere pelo menos uma campanha no Autopilot, um conteúdo no Content
+          Generator e um criativo no Creative Image para montar o pacote completo.
         </div>
       )}
 
-      {result && (
-        <div className="contentResult">
-          <div className="contentScoreBox">
-            <div>
-              <span>Pacote gerado</span>
-              <strong>{productName}</strong>
-              <small>
-                {platform} • {tone} • {objective}
-              </small>
+      {hasAnyData && (
+        <>
+          <div className="packageMetrics">
+            <div className={autopilot ? "active" : ""}>
+              <span>Autopilot</span>
+              <strong>{autopilot ? "Conectado" : "Vazio"}</strong>
             </div>
 
-            <div>
-              <span>Status</span>
-              <strong>Pronto</strong>
-              <small>Salvo no histórico</small>
-            </div>
-          </div>
-
-          <div className="contentGrid">
-            <div className="contentCard highlight">
-              <h3>Headline</h3>
-              <p>{headline}</p>
-              <button onClick={() => copyText(headline)}>Copiar</button>
+            <div className={productHunter ? "active" : ""}>
+              <span>Product Hunter</span>
+              <strong>{productHunter ? "Conectado" : "Vazio"}</strong>
             </div>
 
-            <div className="contentCard">
-              <h3>Copy curta</h3>
-              <p>{shortCopy}</p>
-              <button onClick={() => copyText(shortCopy)}>Copiar</button>
+            <div className={contentGenerator ? "active" : ""}>
+              <span>Content Generator</span>
+              <strong>{contentGenerator ? "Conectado" : "Vazio"}</strong>
             </div>
 
-            <div className="contentCard">
-              <h3>Legenda</h3>
-              <p>{caption}</p>
-              <button onClick={() => copyText(caption)}>Copiar</button>
-            </div>
-
-            <div className="contentCard">
-              <h3>Roteiro de vídeo</h3>
-              <p>{videoScript}</p>
-              <button onClick={() => copyText(videoScript)}>Copiar</button>
-            </div>
-
-            <div className="contentCard">
-              <h3>Texto para WhatsApp</h3>
-              <p>{whatsappText}</p>
-              <button onClick={() => copyText(whatsappText)}>Copiar</button>
-            </div>
-
-            <div className="contentCard">
-              <h3>CTA</h3>
-              <p>{cta}</p>
-              <button onClick={() => copyText(cta)}>Copiar</button>
+            <div className={creativeImage ? "active" : ""}>
+              <span>Creative Image</span>
+              <strong>{creativeImage ? "Conectado" : "Vazio"}</strong>
             </div>
           </div>
 
-          <div className="contentGrid">
-            <div className="contentCard">
-              <h3>Hashtags</h3>
-              <p>{hashtags.join(" ")}</p>
-              <button onClick={() => copyText(hashtags.join(" "))}>
+          <div className="packageGrid">
+            <div className="packageCard highlight">
+              <h3>Resumo da campanha</h3>
+
+              <p>
+                <strong>Produto:</strong>{" "}
+                {getValue(autopilot, ["selected_product"]) ||
+                  getValue(contentGenerator, ["product_name"]) ||
+                  getValue(creativeImage, ["product_name"]) ||
+                  "Produto não encontrado"}
+              </p>
+
+              <p>
+                <strong>Nicho:</strong>{" "}
+                {getValue(autopilot, ["niche"]) ||
+                  getValue(contentGenerator, ["niche"]) ||
+                  getValue(creativeImage, ["niche"]) ||
+                  "Nicho não encontrado"}
+              </p>
+
+              <p>
+                <strong>Score:</strong>{" "}
+                {getValue(autopilot, ["score"], "--")}/100
+              </p>
+
+              <p>
+                <strong>Decisão:</strong>{" "}
+                {getValue(autopilot, ["decision"], "Sem decisão")}
+              </p>
+            </div>
+
+            <div className="packageCard">
+              <h3>Estratégia</h3>
+              <p>{getValue(autopilot, ["strategy"], "Estratégia não gerada.")}</p>
+
+              <button
+                onClick={() =>
+                  copyText(
+                    getValue(autopilot, ["strategy"], "Estratégia não gerada."),
+                    "Estratégia copiada."
+                  )
+                }
+              >
                 Copiar
               </button>
             </div>
 
-            <div className="contentCard">
-              <h3>Variações de anúncio</h3>
-              <ul>
-                {adVariations.map((item: string) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+            <div className="packageCard">
+              <h3>Copy principal</h3>
+              <p>
+                {getValue(contentGenerator, ["short_copy"]) ||
+                  getValue(autopilot, ["short_copy"]) ||
+                  "Copy não gerada."}
+              </p>
+
+              <button
+                onClick={() =>
+                  copyText(
+                    getValue(contentGenerator, ["short_copy"]) ||
+                      getValue(autopilot, ["short_copy"]) ||
+                      "Copy não gerada.",
+                    "Copy copiada."
+                  )
+                }
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="packageCard">
+              <h3>Roteiro de vídeo</h3>
+              <p>
+                {getValue(contentGenerator, ["video_script"]) ||
+                  getValue(autopilot, ["video_script"]) ||
+                  "Roteiro não gerado."}
+              </p>
+
+              <button
+                onClick={() =>
+                  copyText(
+                    getValue(contentGenerator, ["video_script"]) ||
+                      getValue(autopilot, ["video_script"]) ||
+                      "Roteiro não gerado.",
+                    "Roteiro copiado."
+                  )
+                }
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="packageCard">
+              <h3>Prompt visual</h3>
+              <p>
+                {getValue(
+                  creativeImage,
+                  ["image_prompt"],
+                  "Prompt de imagem não gerado."
+                )}
+              </p>
+
+              <button
+                onClick={() =>
+                  copyText(
+                    getValue(
+                      creativeImage,
+                      ["image_prompt"],
+                      "Prompt de imagem não gerado."
+                    ),
+                    "Prompt visual copiado."
+                  )
+                }
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="packageCard">
+              <h3>Texto da arte</h3>
+
+              <p>
+                <strong>Título:</strong>{" "}
+                {getValue(creativeImage, ["art_headline"], "Não gerado.")}
+              </p>
+
+              <p>
+                <strong>Subtítulo:</strong>{" "}
+                {getValue(creativeImage, ["art_subtitle"], "Não gerado.")}
+              </p>
+
+              <p>
+                <strong>CTA:</strong>{" "}
+                {getValue(creativeImage, ["cta"], "Não gerado.")}
+              </p>
             </div>
           </div>
-        </div>
+
+          <div className="packageFinalBox">
+            <div>
+              <span>Entrega final</span>
+              <h3>Campanha completa pronta para copiar ou exportar</h3>
+              <p>
+                Esse bloco junta todos os agentes em uma única entrega. Agora
+                você também pode baixar essa campanha como arquivo .TXT no seu PC.
+              </p>
+            </div>
+
+            <textarea readOnly value={packageText} />
+
+            <div className="packageActions">
+              <button
+                className="primaryButton"
+                onClick={() =>
+                  copyText(packageText, "Campanha completa copiada.")
+                }
+              >
+                Copiar tudo
+              </button>
+
+              <button onClick={exportTxtFile}>Baixar .TXT</button>
+            </div>
+          </div>
+        </>
       )}
     </section>
   );
