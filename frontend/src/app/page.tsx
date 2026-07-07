@@ -6,6 +6,7 @@ import ContentGeneratorPanel from "./components/ContentGeneratorPanel";
 import DashboardOverview from "./components/DashboardOverview";
 import HistoryCenter from "./components/HistoryCenter";
 import ProductHunterPanel from "./components/ProductHunterPanel";
+import SettingsPanel from "./components/SettingsPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -192,31 +193,11 @@ export default function Home() {
     }
 
     return (
-      <section className="comingSoonPanel">
-        <span className="comingEyebrow">Configurações</span>
-        <h2>Configurações do SaaS</h2>
-        <p>
-          Aqui vamos colocar preferências do usuário, dados da conta, limites do
-          plano, canais principais, marketplaces e configurações da IA.
-        </p>
-
-        <div className="comingGrid">
-          <div>
-            <strong>Conta</strong>
-            <span>Dados do usuário e acesso.</span>
-          </div>
-
-          <div>
-            <strong>Preferências</strong>
-            <span>Nichos, canais e estilo padrão.</span>
-          </div>
-
-          <div>
-            <strong>Plano</strong>
-            <span>Free, Pro e Premium futuramente.</span>
-          </div>
-        </div>
-      </section>
+      <SettingsPanel
+        token={token}
+        userName={user?.name || "Usuário"}
+        userEmail={user?.email || "email não encontrado"}
+      />
     );
   }
 
