@@ -1,24 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type AutopilotResult = {
+  id: number | null;
   agent: string;
   status: string;
+
   niche: string;
+  target_audience: string | null;
+
+  objective: string;
+  main_channel: string;
+  budget_style: string;
+  campaign_style: string;
+
   selected_product: string;
   marketplace: string;
   score: number;
   decision: string;
+
   strategy: string;
   headline: string;
   short_copy: string;
   video_script: string;
   image_brief: string;
   voiceover_script: string;
+
   checklist: string[];
+  campaign_package: {
+    product?: {
+      name?: string;
+      marketplace?: string;
+      average_price?: number;
+      commission_percent?: number;
+      reason?: string;
+    };
+    market_analysis?: {
+      score?: number;
+      decision?: string;
+      demand_score?: number;
+      competition_score?: number;
+      visual_strength?: number;
+      impulse_buy?: number;
+      risk_level?: string;
+    };
+    content_package?: {
+      hashtags?: string[];
+      ctas?: string[];
+    };
+    publishing_plan?: {
+      posting_angle?: string;
+      test_variations?: string[];
+    };
+  };
+
+  created_at: string | null;
+};
+
+type AutopilotHistoryItem = {
+  id: number;
+  niche: string;
+  selected_product: string;
+  marketplace: string;
+  score: number;
+  decision: string;
+  main_channel: string;
+  campaign_style: string;
+  status: string;
+  created_at: string;
 };
 
 export default function AffiliateAutopilotPanel() {
@@ -28,10 +80,54 @@ export default function AffiliateAutopilotPanel() {
   );
   const [mainChannel, setMainChannel] = useState("tiktok");
   const [campaignStyle, setCampaignStyle] = useState("viral");
+  const [objective, setObjective] = useState("vender");
+  const [budgetStyle, setBudgetStyle] = useState("organico");
 
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
   const [result, setResult] = useState<AutopilotResult | null>(null);
+  const [history, setHistory] = useState<AutopilotHistoryItem[]>([]);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  function getToken() {
+    return localStorage.getItem("affiliateai_token");
+  }
+
+  async function loadHistory() {
+    setLoadingHistory(true);
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        setLoadingHistory(false);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/autopilot/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        setLoadingHistory(false);
+        return;
+      }
+
+      const data: AutopilotHistoryItem[] = await response.json();
+      setHistory(data);
+    } catch {
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
 
   async function runAutopilot() {
     setLoading(true);
@@ -39,7 +135,7 @@ export default function AffiliateAutopilotPanel() {
     setResult(null);
 
     try {
-      const token = localStorage.getItem("affiliateai_token");
+      const token = getToken();
 
       if (!token) {
         throw new Error("Você precisa estar logado para rodar o Autopilot.");
@@ -54,9 +150,9 @@ export default function AffiliateAutopilotPanel() {
         body: JSON.stringify({
           niche,
           target_audience: targetAudience,
-          objective: "vender",
+          objective,
           main_channel: mainChannel,
-          budget_style: "organico",
+          budget_style: budgetStyle,
           campaign_style: campaignStyle,
         }),
       });
@@ -67,7 +163,9 @@ export default function AffiliateAutopilotPanel() {
       }
 
       const data: AutopilotResult = await response.json();
+
       setResult(data);
+      await loadHistory();
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -79,8 +177,52 @@ export default function AffiliateAutopilotPanel() {
     }
   }
 
+  async function openHistoryItem(id: number) {
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Você precisa estar logado.");
+      }
+
+      const response = await fetch(`${API_URL}/api/autopilot/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: AutopilotResult = await response.json();
+
+      setResult(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao abrir campanha.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function copyText(text: string) {
     navigator.clipboard.writeText(text);
+  }
+
+  function formatDate(date: string | null) {
+    if (!date) {
+      return "Agora";
+    }
+
+    return new Date(date).toLocaleString("pt-BR");
   }
 
   return (
@@ -92,11 +234,16 @@ export default function AffiliateAutopilotPanel() {
 
       <div className="autopilotIntro">
         <div>
-          <h2>Autopilot de Afiliados</h2>
+          <h2>Autopilot Profissional de Afiliados</h2>
           <p>
-            A IA escolhe um produto simulado, analisa a oportunidade e monta
-            estratégia, copy, roteiro, imagem e narração.
+            O sistema escolhe um produto, analisa oportunidade, monta campanha,
+            salva no banco e permite abrir campanhas antigas.
           </p>
+        </div>
+
+        <div className="autopilotStatus">
+          <span>Modo</span>
+          <strong>Campaign Builder</strong>
         </div>
       </div>
 
@@ -106,7 +253,7 @@ export default function AffiliateAutopilotPanel() {
           <input
             value={niche}
             onChange={(event) => setNiche(event.target.value)}
-            placeholder="Ex: beleza, fitness, casa, automotivo"
+            placeholder="Ex: beleza, fitness, casa, automotivo, pet"
           />
         </label>
 
@@ -117,6 +264,19 @@ export default function AffiliateAutopilotPanel() {
             onChange={(event) => setTargetAudience(event.target.value)}
             placeholder="Ex: mulheres de 20 a 35 anos..."
           />
+        </label>
+
+        <label>
+          Objetivo
+          <select
+            value={objective}
+            onChange={(event) => setObjective(event.target.value)}
+          >
+            <option value="vender">Vender</option>
+            <option value="validar_produto">Validar Produto</option>
+            <option value="aquecer_audiencia">Aquecer Audiência</option>
+            <option value="capturar_lead">Capturar Lead</option>
+          </select>
         </label>
 
         <label>
@@ -132,6 +292,18 @@ export default function AffiliateAutopilotPanel() {
             <option value="pinterest">Pinterest</option>
             <option value="google">Google</option>
             <option value="facebook_ads">Facebook Ads</option>
+          </select>
+        </label>
+
+        <label>
+          Orçamento
+          <select
+            value={budgetStyle}
+            onChange={(event) => setBudgetStyle(event.target.value)}
+          >
+            <option value="organico">Orgânico</option>
+            <option value="baixo_orcamento">Baixo orçamento</option>
+            <option value="trafego_pago">Tráfego pago</option>
           </select>
         </label>
 
@@ -155,7 +327,7 @@ export default function AffiliateAutopilotPanel() {
           onClick={runAutopilot}
           disabled={loading}
         >
-          {loading ? "Rodando Autopilot..." : "Rodar Autopilot"}
+          {loading ? "Montando campanha..." : "Rodar Autopilot Profissional"}
         </button>
       </div>
 
@@ -167,13 +339,47 @@ export default function AffiliateAutopilotPanel() {
             <div>
               <span>Produto escolhido</span>
               <strong>{result.selected_product}</strong>
-              <small>{result.marketplace}</small>
+              <small>
+                {result.marketplace} • {formatDate(result.created_at)}
+              </small>
             </div>
 
             <div>
-              <span>Score</span>
+              <span>Score da oportunidade</span>
               <strong>{result.score}/100</strong>
               <small>{result.decision}</small>
+            </div>
+          </div>
+
+          <div className="autopilotMetrics">
+            <div>
+              <span>Demanda</span>
+              <strong>
+                {result.campaign_package.market_analysis?.demand_score ?? "--"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Concorrência</span>
+              <strong>
+                {result.campaign_package.market_analysis?.competition_score ??
+                  "--"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Visual</span>
+              <strong>
+                {result.campaign_package.market_analysis?.visual_strength ??
+                  "--"}
+              </strong>
+            </div>
+
+            <div>
+              <span>Compra por impulso</span>
+              <strong>
+                {result.campaign_package.market_analysis?.impulse_buy ?? "--"}
+              </strong>
             </div>
           </div>
 
@@ -221,8 +427,38 @@ export default function AffiliateAutopilotPanel() {
             </div>
           </div>
 
+          <div className="autopilotGrid">
+            <div className="autopilotCard">
+              <h3>Hashtags</h3>
+              <p>
+                {(result.campaign_package.content_package?.hashtags ?? []).join(
+                  " "
+                )}
+              </p>
+              <button
+                onClick={() =>
+                  copyText(
+                    (
+                      result.campaign_package.content_package?.hashtags ?? []
+                    ).join(" ")
+                  )
+                }
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="autopilotCard">
+              <h3>Plano de publicação</h3>
+              <p>
+                {result.campaign_package.publishing_plan?.posting_angle ??
+                  "Plano não disponível."}
+              </p>
+            </div>
+          </div>
+
           <div className="autopilotCard">
-            <h3>Checklist</h3>
+            <h3>Checklist de execução</h3>
             <ul>
               {result.checklist.map((item) => (
                 <li key={item}>{item}</li>
@@ -231,6 +467,47 @@ export default function AffiliateAutopilotPanel() {
           </div>
         </div>
       )}
+
+      <div className="autopilotHistory">
+        <div className="autopilotHistoryHeader">
+          <div>
+            <h3>Histórico do Autopilot</h3>
+            <p>Campanhas salvas automaticamente no banco.</p>
+          </div>
+
+          <button onClick={loadHistory} disabled={loadingHistory}>
+            {loadingHistory ? "Atualizando..." : "Atualizar"}
+          </button>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="autopilotEmpty">
+            Nenhuma campanha salva ainda. Rode o Autopilot para criar a primeira.
+          </div>
+        ) : (
+          <div className="autopilotHistoryList">
+            {history.map((item) => (
+              <button
+                key={item.id}
+                className="autopilotHistoryItem"
+                onClick={() => openHistoryItem(item.id)}
+              >
+                <div>
+                  <strong>{item.selected_product}</strong>
+                  <span>
+                    {item.niche} • {item.marketplace} • {item.main_channel}
+                  </span>
+                </div>
+
+                <div>
+                  <strong>{item.score}/100</strong>
+                  <span>{item.decision}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

@@ -1,4 +1,5 @@
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -38,7 +39,11 @@ TrafficChannel = Literal[
 
 class AutopilotRequest(BaseModel):
     niche: str = Field(..., min_length=2, examples=["beleza"])
-    target_audience: str | None = "pessoas interessadas no nicho"
+    target_audience: str | None = Field(
+        default=None,
+        examples=["mulheres de 20 a 35 anos interessadas em autocuidado"],
+    )
+
     objective: AutopilotObjective = "vender"
     main_channel: TrafficChannel = "tiktok"
     budget_style: BudgetStyle = "organico"
@@ -46,17 +51,49 @@ class AutopilotRequest(BaseModel):
 
 
 class AutopilotResponse(BaseModel):
+    id: int | None = None
+
     agent: str
     status: str
+
     niche: str
+    target_audience: str | None = None
+
+    objective: str
+    main_channel: str
+    budget_style: str
+    campaign_style: str
+
     selected_product: str
     marketplace: str
     score: int
     decision: str
+
     strategy: str
     headline: str
     short_copy: str
     video_script: str
     image_brief: str
     voiceover_script: str
+
     checklist: list[str]
+    campaign_package: dict[str, Any]
+
+    created_at: datetime | None = None
+
+
+class AutopilotHistoryItem(BaseModel):
+    id: int
+    niche: str
+    selected_product: str
+    marketplace: str
+    score: int
+    decision: str
+    main_channel: str
+    campaign_style: str
+    status: str
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True,
+    }

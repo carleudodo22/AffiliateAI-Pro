@@ -1,28 +1,35 @@
-:root {
-  --bg: #020403;
-  --bg-soft: #061109;
-  --panel: rgba(7, 18, 11, 0.94);
-  --panel-soft: rgba(57, 255, 20, 0.055);
-  --green: #39ff14;
-  --green-light: #a7ff83;
-  --border: rgba(57, 255, 20, 0.26);
-  --border-strong: rgba(57, 255, 20, 0.55);
-  --text: #f0fff2;
-  --muted: #9db5a2;
-  --danger: #ff5f5f;
-}
-
 * {
   box-sizing: border-box;
 }
 
+:root {
+  --bg: #030504;
+  --bg-soft: #07100c;
+  --panel: rgba(8, 16, 13, 0.88);
+  --panel-strong: rgba(10, 22, 17, 0.96);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-green: rgba(0, 255, 136, 0.24);
+  --green: #00ff88;
+  --green-soft: rgba(0, 255, 136, 0.12);
+  --green-dark: #00b864;
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.64);
+  --muted-2: rgba(255, 255, 255, 0.42);
+  --danger: #ff5d5d;
+  --shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+}
+
 html,
 body {
-  margin: 0;
+  width: 100%;
   min-height: 100%;
-  background: var(--bg) !important;
-  color: var(--text) !important;
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 body {
@@ -31,1135 +38,686 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font-family: inherit;
 }
 
 button {
-  cursor: pointer;
+  border: none;
 }
 
-/* BASE */
-
 .page {
-  position: relative;
+  width: 100%;
   min-height: 100vh;
-  padding: 30px 18px 70px;
+  position: relative;
+  padding: 42px 22px 70px;
   background:
-    radial-gradient(circle at 15% 0%, rgba(57, 255, 20, 0.2), transparent 30%),
-    radial-gradient(circle at 85% 5%, rgba(57, 255, 20, 0.12), transparent 28%),
-    linear-gradient(180deg, #020403 0%, #061109 48%, #020403 100%);
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.18), transparent 34%),
+    radial-gradient(circle at top right, rgba(0, 132, 255, 0.1), transparent 30%),
+    linear-gradient(180deg, #030504 0%, #06100c 45%, #020302 100%);
 }
 
 .gridGlow {
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
-  opacity: 0.45;
   background-image:
-    linear-gradient(rgba(57, 255, 20, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(57, 255, 20, 0.04) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom, black, transparent 78%);
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at top, black, transparent 72%);
+  opacity: 0.42;
 }
 
-.hero,
-.authShell {
+.page > *:not(.gridGlow) {
   position: relative;
-  z-index: 2;
-  max-width: 1180px;
-  margin: 0 auto;
+  z-index: 1;
 }
 
-.hero {
-  text-align: center;
+.authShell,
+.hero,
+.autopilotPanel {
+  width: min(1180px, 100%);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .authShell {
-  max-width: 720px;
-  padding: 55px 0;
+  min-height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   text-align: center;
 }
-
-/* HEADER */
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid var(--border);
+  gap: 9px;
+  padding: 9px 14px;
+  border: 1px solid rgba(0, 255, 136, 0.22);
   border-radius: 999px;
-  padding: 10px 16px;
-  background: rgba(57, 255, 20, 0.08);
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  box-shadow: 0 0 26px rgba(57, 255, 20, 0.16);
+  background: rgba(0, 255, 136, 0.075);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 35px rgba(0, 255, 136, 0.08);
 }
 
-.pulse,
-.dot {
-  width: 10px;
-  height: 10px;
+.pulse {
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   background: var(--green);
-  box-shadow: 0 0 18px var(--green);
+  box-shadow: 0 0 0 rgba(0, 255, 136, 0.6);
+  animation: pulseGlow 1.8s infinite;
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.55);
+  }
+
+  70% {
+    box-shadow: 0 0 0 9px rgba(0, 255, 136, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0);
+  }
 }
 
 h1 {
-  margin: 24px 0 18px;
-  color: var(--text);
-  font-size: clamp(52px, 9vw, 110px);
-  line-height: 0.9;
-  letter-spacing: -0.08em;
-  text-shadow: 0 0 35px rgba(57, 255, 20, 0.16);
+  margin: 22px 0 10px;
+  max-width: 850px;
+  font-size: clamp(42px, 7vw, 82px);
+  line-height: 0.96;
+  letter-spacing: -0.075em;
+  color: #ffffff;
 }
 
 h1 span {
   color: var(--green);
-  text-shadow: 0 0 40px rgba(57, 255, 20, 0.45);
+  text-shadow: 0 0 42px rgba(0, 255, 136, 0.28);
 }
 
 .subtitle {
-  max-width: 760px;
+  max-width: 720px;
   margin: 0 auto;
   color: var(--muted);
-  font-size: clamp(16px, 2vw, 21px);
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: 1.7;
 }
 
-/* PANELS */
-
-.authPanel,
-.topBar,
-.metricCard,
-.formPanel,
-.resultPanel,
-.contentPanel,
-.historyPanel {
+.authPanel {
+  width: min(470px, 100%);
+  margin-top: 34px;
+  padding: 22px;
   border: 1px solid var(--border);
+  border-radius: 28px;
   background:
-    linear-gradient(180deg, rgba(11, 30, 17, 0.94), rgba(3, 10, 6, 0.94));
-  box-shadow:
-    0 0 34px rgba(57, 255, 20, 0.11),
-    inset 0 0 38px rgba(57, 255, 20, 0.035);
-  backdrop-filter: blur(14px);
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.1), transparent 32%),
+    rgba(6, 12, 10, 0.86);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+  text-align: left;
 }
 
 .panelHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 18px;
-  border-bottom: 1px solid rgba(57, 255, 20, 0.18);
-  background: rgba(57, 255, 20, 0.045);
-  color: var(--green);
+  gap: 9px;
+  margin-bottom: 18px;
+  color: rgba(255, 255, 255, 0.82);
   font-size: 13px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.09em;
 }
 
-/* AUTH */
-
-.authPanel {
-  width: min(520px, 100%);
-  margin: 36px auto 0;
-  border-radius: 26px;
-  overflow: hidden;
-  text-align: left;
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 18px rgba(0, 255, 136, 0.7);
 }
 
 .authTabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 18px 18px 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+  padding: 6px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.055);
 }
 
 .authTabs button {
-  border: 1px solid rgba(57, 255, 20, 0.25);
+  min-height: 44px;
   border-radius: 14px;
-  padding: 13px;
-  background: rgba(0, 0, 0, 0.25);
   color: var(--muted);
-  font-weight: 900;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 800;
+  transition: 0.2s ease;
 }
 
 .authTabs button.active {
+  color: #001d10;
   background: var(--green);
-  color: #001702;
-  border-color: var(--green);
-  box-shadow: 0 0 24px rgba(57, 255, 20, 0.28);
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.22);
 }
 
 .authForm {
   display: grid;
-  gap: 15px;
-  padding: 16px 22px 24px;
+  gap: 14px;
 }
 
 .authForm label,
-.formGrid label,
-.generatorControls label {
-  display: flex;
-  flex-direction: column;
+.autopilotControls label {
+  display: grid;
   gap: 8px;
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  font-weight: 750;
 }
 
 .authForm input,
-.formGrid input,
-.formGrid select,
-.generatorControls select {
+.autopilotControls input,
+.autopilotControls select {
   width: 100%;
-  border: 1px solid rgba(57, 255, 20, 0.24);
+  min-height: 48px;
+  padding: 0 15px;
   outline: none;
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(0, 0, 0, 0.45);
-  color: var(--text);
-  font-size: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.42);
+  color: white;
+  font-size: 14px;
+  transition: 0.2s ease;
 }
 
 .authForm input:focus,
-.formGrid input:focus,
-.formGrid select:focus,
-.generatorControls select:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.08);
+.autopilotControls input:focus,
+.autopilotControls select:focus {
+  border-color: rgba(0, 255, 136, 0.56);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.08);
 }
 
-select option {
-  background: #061109;
-  color: var(--text);
+.autopilotControls select option {
+  background: #050806;
+  color: white;
 }
-
-/* BUTTONS */
 
 .primaryButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 15px;
-  padding: 15px 22px;
-  background: linear-gradient(135deg, var(--green), var(--green-light));
-  color: #001702;
+  min-height: 50px;
+  border-radius: 16px;
+  cursor: pointer;
+  color: #001d10;
+  background:
+    linear-gradient(180deg, #35ffa4 0%, #00ff88 50%, #00d874 100%);
   font-weight: 950;
-  text-decoration: none;
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.28);
-  transition: 0.18s ease;
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 16px 38px rgba(0, 255, 136, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  transition: 0.2s ease;
 }
 
 .primaryButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 40px rgba(57, 255, 20, 0.38);
+  transform: translateY(-1px);
+  filter: brightness(1.04);
 }
 
 .primaryButton:disabled {
-  opacity: 0.7;
   cursor: not-allowed;
+  opacity: 0.58;
   transform: none;
 }
 
-.topBar button,
-.contentCardHeader button,
-.contentHistoryHeader button,
-.contentHistoryCard button,
-.historyActions button {
-  border: 1px solid rgba(57, 255, 20, 0.28);
-  border-radius: 999px;
-  padding: 9px 13px;
-  background: rgba(57, 255, 20, 0.08);
-  color: var(--green);
+.authButton {
+  margin-top: 6px;
+}
+
+.errorMessage {
+  margin: 4px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 93, 93, 0.25);
+  border-radius: 14px;
+  color: #ffb3b3;
+  background: rgba(255, 93, 93, 0.08);
   font-size: 13px;
-  font-weight: 900;
-  transition: 0.18s ease;
+  line-height: 1.5;
 }
 
-.topBar button:hover,
-.contentCardHeader button:hover,
-.contentHistoryHeader button:hover,
-.contentHistoryCard button:hover,
-.historyActions button:hover {
-  background: var(--green);
-  color: #001702;
+.hero {
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.13), transparent 38%),
+    linear-gradient(145deg, rgba(11, 22, 17, 0.92), rgba(3, 6, 5, 0.94));
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
-
-/* TOP BAR */
 
 .topBar {
-  margin-bottom: 30px;
-  border-radius: 20px;
-  padding: 15px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  text-align: left;
+  gap: 18px;
+  margin-bottom: 28px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.28);
 }
 
 .topBar strong {
   display: block;
-  color: var(--green);
-  font-size: 17px;
-  text-transform: capitalize;
+  color: white;
+  margin-bottom: 4px;
 }
 
 .topBar span {
   display: block;
-  margin-top: 4px;
-  color: var(--muted);
+  color: var(--muted-2);
   font-size: 13px;
 }
 
-/* DASHBOARD */
-
-.metricsGrid {
-  margin: 38px 0 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
-  text-align: left;
+.topBar button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  font-weight: 800;
 }
 
-.metricCard {
+.hero h1,
+.hero .subtitle {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* AUTOPILOT PREMIUM */
+
+.autopilotPanel {
+  margin-top: 28px;
+  padding: 0;
+  border-radius: 34px;
   position: relative;
   overflow: hidden;
-  border-radius: 22px;
-  padding: 19px;
-  min-height: 138px;
+  background:
+    linear-gradient(145deg, rgba(8, 18, 14, 0.96), rgba(2, 4, 3, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 35px 110px rgba(0, 0, 0, 0.48),
+    0 0 60px rgba(0, 255, 136, 0.08);
 }
 
-.metricCard::before {
+.autopilotPanel::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at top left, rgba(57, 255, 20, 0.14), transparent 40%);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(0, 255, 136, 0.22), transparent 34%),
+    radial-gradient(circle at 100% 25%, rgba(0, 119, 255, 0.12), transparent 30%),
+    linear-gradient(rgba(255, 255, 255, 0.027) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.027) 1px, transparent 1px);
+  background-size: auto, auto, 38px 38px, 38px 38px;
+  opacity: 0.8;
   pointer-events: none;
 }
 
-.metricCard.wide {
-  grid-column: span 4;
-  min-height: 105px;
-}
-
-.metricCard span,
-.metricCard strong,
-.metricCard small {
+.autopilotPanel > * {
   position: relative;
+  z-index: 1;
 }
 
-.metricCard span {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.metricCard strong {
-  display: block;
-  margin-top: 11px;
-  color: var(--green);
-  font-size: 40px;
-  line-height: 1;
-}
-
-.metricCard strong.metricText {
-  font-size: 22px;
-  line-height: 1.25;
-  text-transform: capitalize;
-}
-
-.metricCard small {
-  display: block;
-  margin-top: 10px;
-  color: var(--muted);
-  line-height: 1.4;
-}
-
-/* PRODUCT HUNTER */
-
-.productHunterLayout {
-  margin-top: 26px;
-  display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
-  gap: 22px;
-  text-align: left;
-}
-
-.formPanel,
-.resultPanel,
-.historyPanel,
-.contentPanel {
-  border-radius: 26px;
-  overflow: hidden;
-}
-
-.formGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 22px;
-}
-
-.formGrid label.full {
-  grid-column: 1 / -1;
-}
-
-.analyzeButton {
-  width: calc(100% - 44px);
-  margin: 0 22px 22px;
-  font-size: 15px;
-}
-
-.errorMessage {
-  margin: 0 22px 22px;
-  padding: 13px 14px;
-  border: 1px solid rgba(255, 95, 95, 0.35);
-  border-radius: 14px;
-  background: rgba(255, 95, 95, 0.08);
-  color: var(--danger);
-  font-weight: 800;
-  line-height: 1.5;
-}
-
-/* RESULT */
-
-.emptyState {
-  padding: 36px;
-  color: var(--muted);
-  line-height: 1.65;
-  text-align: center;
-}
-
-.resultContent {
-  padding: 24px;
-}
-
-.scoreCircle {
-  width: 132px;
-  height: 132px;
-  margin: 0 auto 18px;
-  border: 2px solid var(--green);
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(57, 255, 20, 0.07);
-  color: var(--green);
-  box-shadow: 0 0 34px rgba(57, 255, 20, 0.28);
-}
-
-.scoreCircle span {
-  font-size: 48px;
-  font-weight: 950;
-}
-
-.scoreCircle small {
-  margin-left: 4px;
-  color: var(--muted);
-  font-weight: 900;
-}
-
-.resultContent h2 {
+.autopilotPanel > .panelHeader {
   margin: 0;
-  color: var(--green);
-  text-align: center;
-  font-size: 28px;
-}
-
-.resultProduct {
-  margin: 8px 0 22px;
-  color: var(--muted);
-  text-align: center;
-  text-transform: capitalize;
-}
-
-.scoreGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.scoreGrid div {
-  border: 1px solid rgba(57, 255, 20, 0.2);
-  border-radius: 16px;
-  padding: 14px 10px;
-  background: rgba(57, 255, 20, 0.055);
-  text-align: center;
-}
-
-.scoreGrid strong {
-  display: block;
-  color: var(--green);
-  font-size: 24px;
-}
-
-.scoreGrid span {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.strategyBlock {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(57, 255, 20, 0.16);
-}
-
-.strategyBlock h3 {
-  margin: 0 0 8px;
-  color: var(--green);
-}
-
-.strategyBlock p,
-.strategyBlock li {
-  color: var(--muted);
-  line-height: 1.58;
-}
-
-.strategyBlock ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-/* CONTENT GENERATOR */
-
-.contentPanel {
-  margin-top: 24px;
-  text-align: left;
-}
-
-.contentIntro {
-  padding: 22px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 22px;
-  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
-}
-
-.contentIntro h2 {
-  margin: 0;
-  color: var(--green);
-  font-size: 25px;
-}
-
-.contentIntro p {
-  margin: 7px 0 0;
-  color: var(--muted);
-  line-height: 1.5;
-}
-
-.contentMainButton {
-  min-width: 230px;
-}
-
-.generatorControls {
-  padding: 20px 22px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
-}
-
-.contentEmpty {
-  padding: 22px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.contentEmpty strong {
-  color: var(--green);
-  text-transform: capitalize;
-}
-
-.copyMessage {
-  margin: 18px 22px 0;
-  padding: 12px 14px;
-  border: 1px solid rgba(57, 255, 20, 0.26);
-  border-radius: 14px;
-  background: rgba(57, 255, 20, 0.08);
-  color: var(--green);
-  font-weight: 900;
-}
-
-.contentResultGrid {
-  padding: 22px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-}
-
-.contentCard {
-  border: 1px solid rgba(57, 255, 20, 0.17);
-  border-radius: 20px;
-  padding: 17px;
-  background: rgba(57, 255, 20, 0.045);
-}
-
-.contentCard.featured {
-  grid-column: span 2;
-  background:
-    radial-gradient(circle at top left, rgba(57, 255, 20, 0.13), transparent 38%),
-    rgba(57, 255, 20, 0.055);
-}
-
-.contentCardHeader {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.contentCardHeader span {
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.contentCard h3 {
-  margin: 0;
-  color: var(--green);
-  font-size: 25px;
-  line-height: 1.25;
-  text-transform: capitalize;
-}
-
-.contentCard p,
-.contentCard li {
-  color: var(--muted);
-  line-height: 1.58;
-}
-
-.contentCard p {
-  margin: 0;
-}
-
-.contentCard ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-/* CONTENT HISTORY */
-
-.contentHistoryBlock {
-  padding: 22px;
-  border-top: 1px solid rgba(57, 255, 20, 0.16);
-}
-
-.contentHistoryHeader {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.contentHistoryHeader h3 {
-  margin: 0;
-  color: var(--green);
-  font-size: 22px;
-}
-
-.contentHistoryHeader p {
-  margin: 6px 0 0;
-  color: var(--muted);
-}
-
-.contentHistoryEmpty {
-  margin: 0;
-  padding: 16px;
-  border: 1px solid rgba(57, 255, 20, 0.14);
-  border-radius: 16px;
-  background: rgba(57, 255, 20, 0.04);
-  color: var(--muted);
-  text-align: center;
-}
-
-.contentHistoryList {
-  display: grid;
-  gap: 12px;
-}
-
-.contentHistoryCard {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  border: 1px solid rgba(57, 255, 20, 0.16);
-  border-radius: 17px;
-  padding: 15px;
-  background: rgba(57, 255, 20, 0.04);
-}
-
-.contentHistoryCard.active {
-  border-color: var(--green);
-  box-shadow: 0 0 22px rgba(57, 255, 20, 0.14);
-}
-
-.contentHistoryCard strong {
-  display: block;
-  color: var(--green);
-  text-transform: capitalize;
-}
-
-.contentHistoryCard span {
-  display: block;
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 13px;
-  text-transform: capitalize;
-}
-
-/* ANALYSIS HISTORY */
-
-.historyPanel {
-  margin-top: 24px;
-  text-align: left;
-}
-
-.historyEmpty {
-  margin: 0;
-  padding: 24px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.historyList {
-  padding: 18px;
-  display: grid;
-  gap: 12px;
-}
-
-.historyCard {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: center;
-  border: 1px solid rgba(57, 255, 20, 0.16);
-  border-radius: 17px;
-  padding: 16px;
-  background: rgba(57, 255, 20, 0.045);
-}
-
-.historyCard strong {
-  display: block;
-  color: var(--green);
-  text-transform: capitalize;
-}
-
-.historyCard span {
-  display: block;
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.historyActions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.historyScore {
-  min-width: 160px;
-  text-align: right;
-}
-
-.historyScore strong {
-  font-size: 28px;
-}
-
-/* RESPONSIVE */
-
-@media (max-width: 1050px) {
-  .metricsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .metricCard.wide {
-    grid-column: span 2;
-  }
-
-  .productHunterLayout {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .page {
-    padding: 24px 13px 55px;
-  }
-
-  .topBar,
-  .contentIntro,
-  .contentHistoryHeader,
-  .historyCard,
-  .contentHistoryCard {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .topBar button,
-  .contentMainButton,
-  .contentHistoryHeader button,
-  .contentHistoryCard button,
-  .historyActions button {
-    width: 100%;
-  }
-
-  .historyActions {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .formGrid,
-  .generatorControls,
-  .contentResultGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .contentCard.featured {
-    grid-column: span 1;
-  }
-
-  .scoreGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .historyScore {
-    min-width: 0;
-    text-align: left;
-  }
-}
-
-@media (max-width: 560px) {
-  h1 {
-    font-size: clamp(44px, 16vw, 70px);
-  }
-
-  .metricsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .metricCard.wide {
-    grid-column: span 1;
-  }
-
-  .scoreGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .authTabs {
-    grid-template-columns: 1fr;
-  }
-}
-
-.autopilotPanel {
-  margin-top: 26px;
-  border: 1px solid var(--border);
-  border-radius: 26px;
-  overflow: hidden;
-  text-align: left;
-  background:
-    linear-gradient(180deg, rgba(11, 30, 17, 0.94), rgba(3, 10, 6, 0.94));
-  box-shadow:
-    0 0 34px rgba(57, 255, 20, 0.11),
-    inset 0 0 38px rgba(57, 255, 20, 0.035);
+  padding: 22px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .autopilotIntro {
-  padding: 22px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 230px;
   gap: 22px;
-  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
+  padding: 28px;
 }
 
 .autopilotIntro h2 {
-  margin: 0;
-  color: var(--green);
-  font-size: 25px;
+  margin: 0 0 10px;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
 }
 
 .autopilotIntro p {
-  margin: 7px 0 0;
+  max-width: 760px;
+  margin: 0;
   color: var(--muted);
-  line-height: 1.5;
-}
-
-.autopilotButton {
-  min-width: 220px;
-}
-
-.autopilotControls {
-  padding: 22px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  border-bottom: 1px solid rgba(57, 255, 20, 0.16);
-}
-
-.autopilotControls label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: var(--green);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.autopilotControls label.wide {
-  grid-column: span 2;
-}
-
-.autopilotControls input,
-.autopilotControls select {
-  width: 100%;
-  border: 1px solid rgba(57, 255, 20, 0.24);
-  outline: none;
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(0, 0, 0, 0.45);
-  color: var(--text);
+  line-height: 1.75;
   font-size: 15px;
 }
 
-.autopilotControls input:focus,
-.autopilotControls select:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.08);
-}
-
-.autopilotEmpty {
-  padding: 24px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.autopilotEmpty strong {
-  color: var(--green);
-}
-
-.autopilotResult {
-  padding: 22px;
-}
-
-.autopilotScoreBox {
-  border: 1px solid rgba(57, 255, 20, 0.2);
+.autopilotStatus {
+  align-self: start;
+  padding: 18px;
   border-radius: 22px;
-  padding: 20px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
   background:
-    radial-gradient(circle at top left, rgba(57, 255, 20, 0.14), transparent 36%),
-    rgba(57, 255, 20, 0.045);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 22px;
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 45%),
+    rgba(0, 255, 136, 0.06);
 }
 
-.autopilotScoreBox span,
-.autopilotCard span {
+.autopilotStatus span {
+  display: block;
+  color: var(--muted-2);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.autopilotStatus strong {
   display: block;
   color: var(--green);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 18px;
+  letter-spacing: -0.03em;
 }
 
-.autopilotScoreBox h3 {
-  margin: 9px 0;
-  color: var(--green);
-  font-size: 30px;
-  text-transform: capitalize;
-}
-
-.autopilotScoreBox p,
-.autopilotCard p,
-.autopilotCard li {
-  color: var(--muted);
-  line-height: 1.58;
-}
-
-.autopilotScoreCircle {
-  width: 120px;
-  height: 120px;
-  border: 2px solid var(--green);
-  border-radius: 999px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: var(--green);
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.24);
-  flex-shrink: 0;
-}
-
-.autopilotScoreCircle strong {
-  font-size: 42px;
-}
-
-.autopilotScoreCircle small {
-  color: var(--muted);
-  font-weight: 900;
-}
-
-.autopilotGrid {
-  margin-top: 16px;
+.autopilotControls {
+  margin: 0 28px 28px;
+  padding: 20px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 15px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  backdrop-filter: blur(18px);
 }
 
-.autopilotCard {
-  border: 1px solid rgba(57, 255, 20, 0.17);
-  border-radius: 20px;
-  padding: 17px;
-  background: rgba(57, 255, 20, 0.045);
-}
-
-.autopilotCard.wide {
+.autopilotControls label:nth-child(2) {
   grid-column: span 2;
 }
 
-.autopilotCard strong {
+.autopilotButton {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  border-radius: 18px;
+  font-size: 15px;
+}
+
+.autopilotResult {
+  padding: 0 28px 28px;
+}
+
+.autopilotScoreBox {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.autopilotScoreBox div {
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.18), transparent 42%),
+    linear-gradient(145deg, rgba(0, 255, 136, 0.07), rgba(255, 255, 255, 0.025));
+}
+
+.autopilotScoreBox span,
+.autopilotMetrics span {
   display: block;
-  margin-top: 8px;
+  color: var(--muted-2);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 8px;
+}
+
+.autopilotScoreBox strong {
+  display: block;
   color: var(--green);
-  font-size: 20px;
-  text-transform: capitalize;
+  font-size: clamp(26px, 3.5vw, 38px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+  margin-bottom: 8px;
+}
+
+.autopilotScoreBox small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.autopilotMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+  margin-bottom: 16px;
+}
+
+.autopilotMetrics div {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.autopilotMetrics strong {
+  display: block;
+  color: white;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.autopilotGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.autopilotCard {
+  padding: 21px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.autopilotCard h3 {
+  margin: 0 0 11px;
+  color: white;
+  font-size: 18px;
+  letter-spacing: -0.025em;
+}
+
+.autopilotCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.75;
+  font-size: 14px;
 }
 
 .autopilotCard button,
-.autopilotHistoryHeader button,
-.autopilotHistoryCard button {
-  margin-top: 12px;
-  border: 1px solid rgba(57, 255, 20, 0.28);
+.autopilotHistoryHeader button {
+  margin-top: 15px;
+  min-height: 38px;
+  padding: 0 15px;
   border-radius: 999px;
-  padding: 9px 13px;
-  background: rgba(57, 255, 20, 0.08);
+  cursor: pointer;
   color: var(--green);
-  font-size: 13px;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
   font-weight: 900;
+  transition: 0.2s ease;
 }
 
 .autopilotCard button:hover,
-.autopilotHistoryHeader button:hover,
-.autopilotHistoryCard button:hover {
-  background: var(--green);
-  color: #001702;
+.autopilotHistoryHeader button:hover {
+  transform: translateY(-1px);
+  background: rgba(0, 255, 136, 0.14);
+}
+
+.autopilotCard ul {
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.85;
+  font-size: 14px;
 }
 
 .autopilotHistory {
+  margin: 0 28px 28px;
   padding: 22px;
-  border-top: 1px solid rgba(57, 255, 20, 0.16);
+  border-radius: 26px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.075);
 }
 
 .autopilotHistoryHeader {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
   align-items: center;
+  gap: 18px;
   margin-bottom: 16px;
 }
 
 .autopilotHistoryHeader h3 {
-  margin: 0;
-  color: var(--green);
-  font-size: 22px;
+  margin: 0 0 5px;
+  color: white;
+  font-size: 21px;
+  letter-spacing: -0.035em;
 }
 
 .autopilotHistoryHeader p {
-  margin: 6px 0 0;
-  color: var(--muted);
+  margin: 0;
+  color: var(--muted-2);
+  font-size: 14px;
 }
 
-.autopilotHistoryEmpty {
-  margin: 0;
-  padding: 16px;
-  border: 1px solid rgba(57, 255, 20, 0.14);
-  border-radius: 16px;
-  background: rgba(57, 255, 20, 0.04);
+.autopilotEmpty {
+  padding: 18px;
+  border-radius: 18px;
   color: var(--muted);
-  text-align: center;
+  border: 1px dashed rgba(0, 255, 136, 0.22);
+  background: rgba(0, 255, 136, 0.04);
 }
 
 .autopilotHistoryList {
   display: grid;
-  gap: 12px;
+  gap: 11px;
 }
 
-.autopilotHistoryCard {
+.autopilotHistoryItem {
+  width: 100%;
+  padding: 16px;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
   align-items: center;
-  border: 1px solid rgba(57, 255, 20, 0.16);
-  border-radius: 17px;
-  padding: 15px;
-  background: rgba(57, 255, 20, 0.04);
+  gap: 18px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.035);
+  transition: 0.2s ease;
 }
 
-.autopilotHistoryCard strong {
-  display: block;
-  color: var(--green);
-  text-transform: capitalize;
+.autopilotHistoryItem:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 255, 136, 0.28);
+  background: rgba(0, 255, 136, 0.06);
 }
 
-.autopilotHistoryCard span {
+.autopilotHistoryItem strong {
   display: block;
-  margin-top: 5px;
-  color: var(--muted);
+  color: white;
+  font-size: 15px;
+  margin-bottom: 5px;
+}
+
+.autopilotHistoryItem span {
+  display: block;
+  color: var(--muted-2);
   font-size: 13px;
-  text-transform: capitalize;
 }
+
+.autopilotHistoryItem > div:last-child {
+  text-align: right;
+}
+
+/* RESPONSIVO */
 
 @media (max-width: 900px) {
-  .autopilotIntro,
-  .autopilotScoreBox,
-  .autopilotHistoryHeader,
-  .autopilotHistoryCard {
-    flex-direction: column;
+  .page {
+    padding: 22px 14px 46px;
+  }
+
+  .hero,
+  .authPanel {
+    border-radius: 24px;
+  }
+
+  .topBar {
     align-items: flex-start;
+    flex-direction: column;
   }
 
-  .autopilotButton,
-  .autopilotHistoryHeader button,
-  .autopilotHistoryCard button {
-    width: 100%;
-  }
-
-  .autopilotControls {
-    grid-template-columns: 1fr;
-  }
-
-  .autopilotControls label.wide {
-    grid-column: span 1;
-  }
-
+  .autopilotIntro,
+  .autopilotControls,
+  .autopilotScoreBox,
+  .autopilotMetrics,
   .autopilotGrid {
     grid-template-columns: 1fr;
   }
 
-  .autopilotCard.wide {
-    grid-column: span 1;
+  .autopilotControls label:nth-child(2) {
+    grid-column: auto;
+  }
+
+  .autopilotPanel > .panelHeader,
+  .autopilotIntro,
+  .autopilotResult {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .autopilotControls,
+  .autopilotHistory {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .autopilotHistoryHeader,
+  .autopilotHistoryItem {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .autopilotHistoryItem > div:last-child {
+    text-align: left;
   }
 }
