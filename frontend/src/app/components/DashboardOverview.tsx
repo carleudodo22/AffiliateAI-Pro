@@ -17,6 +17,18 @@ type AutopilotHistoryItem = {
   created_at: string;
 };
 
+type ContentGeneratorHistoryItem = {
+  id: number;
+  product_name: string;
+  niche: string;
+  platform: string;
+  tone: string;
+  objective: string;
+  headline: string;
+  status: string;
+  created_at: string;
+};
+
 type ProductHunterHistoryItem = Record<string, any>;
 
 type UserPreferences = {
@@ -41,11 +53,18 @@ export default function DashboardOverview() {
   const [autopilotHistory, setAutopilotHistory] = useState<
     AutopilotHistoryItem[]
   >([]);
+
   const [productHunterHistory, setProductHunterHistory] = useState<
     ProductHunterHistoryItem[]
   >([]);
+
+  const [contentHistory, setContentHistory] = useState<
+    ContentGeneratorHistoryItem[]
+  >([]);
+
   const [preferences, setPreferences] =
     useState<UserPreferences>(DEFAULT_PREFERENCES);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,11 +76,16 @@ export default function DashboardOverview() {
 
     window.addEventListener("autopilot-history-updated", refreshDashboard);
     window.addEventListener("product-hunter-history-updated", refreshDashboard);
+    window.addEventListener("content-generator-history-updated", refreshDashboard);
 
     return () => {
       window.removeEventListener("autopilot-history-updated", refreshDashboard);
       window.removeEventListener(
         "product-hunter-history-updated",
+        refreshDashboard
+      );
+      window.removeEventListener(
+        "content-generator-history-updated",
         refreshDashboard
       );
     };
@@ -103,46 +127,59 @@ export default function DashboardOverview() {
       if (!token) {
         setAutopilotHistory([]);
         setProductHunterHistory([]);
+        setContentHistory([]);
         return;
       }
 
-      const autopilotResponse = await fetch(
-        `${API_URL}/api/autopilot/history`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const requestHeaders = {
+        Authorization: `Bearer ${token}`,
+      };
 
-      if (autopilotResponse.ok) {
-        const autopilotData: AutopilotHistoryItem[] =
-          await autopilotResponse.json();
+      const [autopilotResponse, productHunterResponse, contentResponse] =
+        await Promise.allSettled([
+          fetch(`${API_URL}/api/autopilot/history`, {
+            headers: requestHeaders,
+          }),
+          fetch(`${API_URL}/api/product-hunter/history`, {
+            headers: requestHeaders,
+          }),
+          fetch(`${API_URL}/api/content-generator/history`, {
+            headers: requestHeaders,
+          }),
+        ]);
+
+      if (
+        autopilotResponse.status === "fulfilled" &&
+        autopilotResponse.value.ok
+      ) {
+        const autopilotData = await autopilotResponse.value.json();
         setAutopilotHistory(Array.isArray(autopilotData) ? autopilotData : []);
       } else {
         setAutopilotHistory([]);
       }
 
-      const productHunterResponse = await fetch(
-        `${API_URL}/api/product-hunter/history`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (productHunterResponse.ok) {
-        const productHunterData = await productHunterResponse.json();
+      if (
+        productHunterResponse.status === "fulfilled" &&
+        productHunterResponse.value.ok
+      ) {
+        const productHunterData = await productHunterResponse.value.json();
         setProductHunterHistory(
           Array.isArray(productHunterData) ? productHunterData : []
         );
       } else {
         setProductHunterHistory([]);
       }
+
+      if (contentResponse.status === "fulfilled" && contentResponse.value.ok) {
+        const contentData = await contentResponse.value.json();
+        setContentHistory(Array.isArray(contentData) ? contentData : []);
+      } else {
+        setContentHistory([]);
+      }
     } catch {
       setAutopilotHistory([]);
       setProductHunterHistory([]);
+      setContentHistory([]);
     } finally {
       setLoading(false);
     }
@@ -199,6 +236,7 @@ export default function DashboardOverview() {
   const metrics = useMemo(() => {
     const totalCampaigns = autopilotHistory.length;
     const totalProductAnalyses = productHunterHistory.length;
+    const totalContents = contentHistory.length;
 
     const averageScore =
       totalCampaigns > 0
@@ -216,10 +254,20 @@ export default function DashboardOverview() {
     const lastCampaign =
       autopilotHistory.length > 0 ? autopilotHistory[0] : null;
 
+    const lastContent = contentHistory.length > 0 ? contentHistory[0] : null;
+
+    const lastProductAnalysis =
+      productHunterHistory.length > 0 ? productHunterHistory[0] : null;
+
     const channelCount: Record<string, number> = {};
 
     for (const item of autopilotHistory) {
-      channelCount[item.main_channel] = (channelCount[item.main_channel] || 0) + 1;
+      channelCount[item.main_channel] =
+        (channelCount[item.main_channel] || 0) + 1;
+    }
+
+    for (const item of contentHistory) {
+      channelCount[item.platform] = (channelCount[item.platform] || 0) + 1;
     }
 
     const topChannel =
@@ -227,28 +275,33 @@ export default function DashboardOverview() {
       preferences.defaultChannel ||
       "Nenhum";
 
-    const totalActions = totalCampaigns + totalProductAnalyses;
+    const totalActions = totalCampaigns + totalProductAnalyses + totalContents;
 
     return {
       totalCampaigns,
       totalProductAnalyses,
+      totalContents,
       totalActions,
       averageScore,
       bestCampaign,
       lastCampaign,
+      lastContent,
+      lastProductAnalysis,
       topChannel,
     };
-  }, [autopilotHistory, productHunterHistory, preferences]);
+  }, [autopilotHistory, productHunterHistory, contentHistory, preferences]);
 
   return (
     <section className="dashboardPanel">
       <div className="dashboardCommandHeader">
         <div>
           <span className="dashboardEyebrow">Central de comando</span>
+
           <h2>Dashboard AffiliateAI Pro</h2>
+
           <p>
-            Acompanhe campanhas, análises, preferências salvas e status dos
-            agentes principais do seu SaaS de afiliados.
+            Acompanhe campanhas, análises, conteúdos gerados, preferências
+            salvas e status dos agentes principais do seu SaaS de afiliados.
           </p>
         </div>
 
@@ -273,15 +326,47 @@ export default function DashboardOverview() {
         </div>
 
         <div className="dashboardCard">
+          <span>Conteúdos gerados</span>
+          <strong>{metrics.totalContents}</strong>
+          <small>Content Generator</small>
+        </div>
+
+        <div className="dashboardCard">
+          <span>Ações totais</span>
+          <strong>{metrics.totalActions}</strong>
+          <small>Campanhas + análises + conteúdos</small>
+        </div>
+      </div>
+
+      <div className="dashboardMetrics">
+        <div className="dashboardCard">
           <span>Score médio</span>
           <strong>{metrics.averageScore}/100</strong>
           <small>Média das oportunidades</small>
         </div>
 
         <div className="dashboardCard">
-          <span>Ações totais</span>
-          <strong>{metrics.totalActions}</strong>
-          <small>Campanhas + análises</small>
+          <span>Melhor produto</span>
+          <strong>{metrics.bestCampaign?.selected_product || "Nenhum"}</strong>
+          <small>
+            {metrics.bestCampaign
+              ? `${metrics.bestCampaign.score}/100 • ${formatMarketplace(
+                  metrics.bestCampaign.marketplace
+                )}`
+              : "Rode o Autopilot"}
+          </small>
+        </div>
+
+        <div className="dashboardCard">
+          <span>Canal principal</span>
+          <strong>{formatChannel(metrics.topChannel)}</strong>
+          <small>Canal mais usado nos agentes</small>
+        </div>
+
+        <div className="dashboardCard">
+          <span>Nicho padrão</span>
+          <strong>{preferences.defaultNiche || "beleza"}</strong>
+          <small>Salvo nas Configurações</small>
         </div>
       </div>
 
@@ -290,7 +375,9 @@ export default function DashboardOverview() {
           <div className="dashboardBoxHeader">
             <div>
               <span>Melhor oportunidade</span>
-              <h3>{metrics.bestCampaign?.selected_product || "Nenhuma ainda"}</h3>
+              <h3>
+                {metrics.bestCampaign?.selected_product || "Nenhuma ainda"}
+              </h3>
             </div>
 
             <strong>
@@ -303,20 +390,29 @@ export default function DashboardOverview() {
               <p>
                 {metrics.bestCampaign.decision} no nicho{" "}
                 <strong>{metrics.bestCampaign.niche}</strong>, usando{" "}
-                <strong>{formatChannel(metrics.bestCampaign.main_channel)}</strong>{" "}
+                <strong>
+                  {formatChannel(metrics.bestCampaign.main_channel)}
+                </strong>{" "}
                 com estilo{" "}
-                <strong>{formatStyle(metrics.bestCampaign.campaign_style)}</strong>.
+                <strong>
+                  {formatStyle(metrics.bestCampaign.campaign_style)}
+                </strong>
+                .
               </p>
 
               <div className="dashboardMiniGrid">
                 <div>
                   <span>Marketplace</span>
-                  <strong>{formatMarketplace(metrics.bestCampaign.marketplace)}</strong>
+                  <strong>
+                    {formatMarketplace(metrics.bestCampaign.marketplace)}
+                  </strong>
                 </div>
 
                 <div>
                   <span>Canal</span>
-                  <strong>{formatChannel(metrics.bestCampaign.main_channel)}</strong>
+                  <strong>
+                    {formatChannel(metrics.bestCampaign.main_channel)}
+                  </strong>
                 </div>
 
                 <div>
@@ -388,6 +484,66 @@ export default function DashboardOverview() {
         </div>
 
         <div className="dashboardBox">
+          <h3>Último conteúdo gerado</h3>
+
+          {metrics.lastContent ? (
+            <div className="dashboardCampaign">
+              <strong>{metrics.lastContent.product_name}</strong>
+              <span>
+                {metrics.lastContent.niche} •{" "}
+                {formatChannel(metrics.lastContent.platform)} •{" "}
+                {formatStyle(metrics.lastContent.tone)}
+              </span>
+              <p>{metrics.lastContent.headline}</p>
+            </div>
+          ) : (
+            <p className="dashboardEmpty">
+              Nenhum conteúdo criado ainda. Vá para o Content Generator.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="dashboardSplit">
+        <div className="dashboardBox">
+          <h3>Última análise de produto</h3>
+
+          {metrics.lastProductAnalysis ? (
+            <div className="dashboardCampaign">
+              <strong>
+                {metrics.lastProductAnalysis.product_name ||
+                  metrics.lastProductAnalysis.selected_product ||
+                  metrics.lastProductAnalysis.name ||
+                  "Produto analisado"}
+              </strong>
+
+              <span>
+                {metrics.lastProductAnalysis.niche ||
+                  metrics.lastProductAnalysis.category ||
+                  "nicho"}{" "}
+                •{" "}
+                {formatMarketplace(
+                  metrics.lastProductAnalysis.marketplace || "marketplace"
+                )}
+              </span>
+
+              <p>
+                Score{" "}
+                {metrics.lastProductAnalysis?.score?.final_score ??
+                  metrics.lastProductAnalysis.final_score ??
+                  metrics.lastProductAnalysis.score ??
+                  "--"}
+                /100
+              </p>
+            </div>
+          ) : (
+            <p className="dashboardEmpty">
+              Nenhuma análise criada ainda. Vá para o Product Hunter.
+            </p>
+          )}
+        </div>
+
+        <div className="dashboardBox">
           <h3>Status dos agentes</h3>
 
           <div className="systemList">
@@ -403,12 +559,12 @@ export default function DashboardOverview() {
 
             <div>
               <span>Content Generator</span>
-              <strong>Ativo</strong>
+              <strong>Salvando histórico</strong>
             </div>
 
             <div>
-              <span>Configurações</span>
-              <strong>Sincronizadas</strong>
+              <span>Histórico Geral</span>
+              <strong>Unificado</strong>
             </div>
           </div>
         </div>
@@ -417,10 +573,13 @@ export default function DashboardOverview() {
       <div className="dashboardActionsPanel">
         <div>
           <span>Próximo passo recomendado</span>
-          <h3>Criar histórico completo de conteúdos</h3>
+
+          <h3>Criar Creative Image Agent</h3>
+
           <p>
-            O próximo avanço forte é fazer o Content Generator salvar no banco e
-            aparecer no Histórico Geral junto com Autopilot e Product Hunter.
+            Agora que campanhas, análises e conteúdos já aparecem no histórico,
+            o próximo avanço forte é criar um agente para gerar briefing visual,
+            prompt de imagem, texto da arte e estrutura 9:16 para afiliados.
           </p>
         </div>
 
