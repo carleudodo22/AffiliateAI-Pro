@@ -4,6 +4,7 @@ import redis
 
 from app.api.auth import router as auth_router
 from app.api.autopilot import router as autopilot_router
+from app.api.campaign_package import router as campaign_package_router
 from app.api.content_generator import router as content_generator_router
 from app.api.creative_image import router as creative_image_router
 from app.api.dashboard import router as dashboard_router
@@ -13,6 +14,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import check_database_connection, engine
 from app.models.autopilot_run import AutopilotRun
+from app.models.campaign_package import CampaignPackageRun
 from app.models.content_generation import ContentGeneration
 from app.models.creative_image import CreativeImageGeneration
 from app.models.product_analysis import ProductAnalysis
@@ -82,4 +84,5 @@ app.include_router(content_generator_router)
 app.include_router(creative_image_router)
 app.include_router(autopilot_router)
 app.include_router(user_settings_router)
+app.include_router(campaign_package_router)
 app.include_router(dashboard_router)

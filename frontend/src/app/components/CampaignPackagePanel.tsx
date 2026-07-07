@@ -17,12 +17,21 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
   const [contentGenerator, setContentGenerator] = useState<AnyData | null>(null);
   const [creativeImage, setCreativeImage] = useState<AnyData | null>(null);
 
+  const [savedPackages, setSavedPackages] = useState<AnyData[]>([]);
+  const [savedPackagePreview, setSavedPackagePreview] = useState<AnyData | null>(
+    null
+  );
+
   const [loading, setLoading] = useState(false);
+  const [loadingSavedPackages, setLoadingSavedPackages] = useState(false);
+  const [savingPackage, setSavingPackage] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
   useEffect(() => {
     loadPackage();
+    loadSavedPackages();
   }, [token]);
 
   function getToken() {
@@ -52,7 +61,7 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
     }
 
     const latestItem = historyData[0];
-    const id = latestItem.id ?? latestItem.analysis_id;
+    const id = latestItem.id ?? latestItem.analysis_id ?? latestItem.creative_id;
 
     if (!id) {
       return latestItem;
@@ -75,6 +84,7 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
     setLoading(true);
     setErrorMessage("");
     setCopyMessage("");
+    setSavedPackagePreview(null);
 
     try {
       const currentToken = getToken();
@@ -135,6 +145,83 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
     }
   }
 
+  async function loadSavedPackages() {
+    setLoadingSavedPackages(true);
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        setSavedPackages([]);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/campaign-package/history`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        setSavedPackages([]);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        setSavedPackages(data);
+      } else {
+        setSavedPackages([]);
+      }
+    } catch {
+      setSavedPackages([]);
+    } finally {
+      setLoadingSavedPackages(false);
+    }
+  }
+
+  async function openSavedPackage(packageId: number) {
+    setLoading(true);
+    setErrorMessage("");
+    setCopyMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/campaign-package/${packageId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data = await response.json();
+
+      setSavedPackagePreview(data);
+      setCopyMessage("Pacote salvo carregado com sucesso.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao abrir pacote salvo.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function copyText(text: string, message = "Copiado com sucesso.") {
     navigator.clipboard.writeText(text);
     setCopyMessage(message);
@@ -172,27 +259,36 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
     return fallback;
   }
 
-  const packageText = useMemo(() => {
-    const productName =
+  function getPackageProductName() {
+    return (
       getValue(autopilot, ["selected_product"]) ||
       getValue(contentGenerator, ["product_name"]) ||
       getValue(creativeImage, ["product_name"]) ||
       getValue(productHunter, ["product_name", "product.name", "name"]) ||
-      "Produto ainda não definido";
+      "Produto ainda não definido"
+    );
+  }
 
-    const niche =
+  function getPackageNiche() {
+    return (
       getValue(autopilot, ["niche"]) ||
       getValue(contentGenerator, ["niche"]) ||
       getValue(creativeImage, ["niche"]) ||
       getValue(productHunter, ["niche", "category"]) ||
-      "Nicho ainda não definido";
+      "Nicho ainda não definido"
+    );
+  }
 
-    const marketplace =
+  function getPackageMarketplace() {
+    return (
       getValue(autopilot, ["marketplace"]) ||
       getValue(productHunter, ["marketplace"]) ||
-      "Marketplace não definido";
+      "Marketplace não definido"
+    );
+  }
 
-    const score =
+  function getPackageScore() {
+    return (
       getValue(autopilot, ["score"]) ||
       getValue(productHunter, [
         "score.final_score",
@@ -200,12 +296,24 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
         "score",
         "analysis.score.final_score",
       ]) ||
-      "--";
+      "--"
+    );
+  }
 
-    const decision =
+  function getPackageDecision() {
+    return (
       getValue(autopilot, ["decision"]) ||
       getValue(productHunter, ["decision", "analysis.decision"]) ||
-      "Decisão ainda não definida";
+      "Decisão ainda não definida"
+    );
+  }
+
+  const packageText = useMemo(() => {
+    const productName = getPackageProductName();
+    const niche = getPackageNiche();
+    const marketplace = getPackageMarketplace();
+    const score = getPackageScore();
+    const decision = getPackageDecision();
 
     const strategy = getValue(autopilot, ["strategy"], "Estratégia não gerada.");
 
@@ -346,14 +454,84 @@ AffiliateAI Pro - MVP Local`;
 
   const hasAnyData = autopilot || productHunter || contentGenerator || creativeImage;
 
+  const activePackageText =
+    savedPackagePreview?.package_text && typeof savedPackagePreview.package_text === "string"
+      ? savedPackagePreview.package_text
+      : packageText;
+
+  const hasExportableData = Boolean(savedPackagePreview) || Boolean(hasAnyData);
+
+  async function savePackageToDatabase() {
+    setSavingPackage(true);
+    setErrorMessage("");
+    setCopyMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para salvar o pacote.");
+      }
+
+      if (!hasAnyData) {
+        throw new Error("Monte uma campanha antes de salvar no banco.");
+      }
+
+      const response = await fetch(`${API_URL}/api/campaign-package/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          product_name: getPackageProductName(),
+          niche: getPackageNiche(),
+          marketplace: getPackageMarketplace(),
+          score: String(getPackageScore()),
+          decision: getPackageDecision(),
+          package_text: packageText,
+          source_data: {
+            autopilot,
+            product_hunter: productHunter,
+            content_generator: contentGenerator,
+            creative_image: creativeImage,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data = await response.json();
+
+      setSavedPackagePreview(data);
+      setCopyMessage(`Pacote salvo no banco com sucesso. ID #${data.id}`);
+
+      await loadSavedPackages();
+
+      window.dispatchEvent(new Event("campaign-package-history-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao salvar pacote no banco.");
+      }
+    } finally {
+      setSavingPackage(false);
+    }
+  }
+
   function getCleanProductName() {
     const productName =
+      savedPackagePreview?.product_name ||
       getValue(autopilot, ["selected_product"]) ||
       getValue(contentGenerator, ["product_name"]) ||
       getValue(creativeImage, ["product_name"]) ||
       "campanha";
 
-    return productName
+    return String(productName)
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -369,12 +547,12 @@ AffiliateAI Pro - MVP Local`;
   }
 
   function exportTxtFile() {
-    if (!hasAnyData) {
-      setErrorMessage("Gere ou carregue uma campanha antes de exportar.");
+    if (!hasExportableData) {
+      setErrorMessage("Gere, carregue ou abra uma campanha antes de exportar.");
       return;
     }
 
-    const blob = new Blob([packageText], {
+    const blob = new Blob([activePackageText], {
       type: "text/plain;charset=utf-8",
     });
 
@@ -393,8 +571,8 @@ AffiliateAI Pro - MVP Local`;
   }
 
   function exportPdfFile() {
-    if (!hasAnyData) {
-      setErrorMessage("Gere ou carregue uma campanha antes de exportar.");
+    if (!hasExportableData) {
+      setErrorMessage("Gere, carregue ou abra uma campanha antes de exportar.");
       return;
     }
 
@@ -459,7 +637,7 @@ AffiliateAI Pro - MVP Local`;
 
     y += 12;
 
-    const sections = packageText.split("\n\n");
+    const sections = activePackageText.split("\n\n");
 
     sections.forEach((section) => {
       const lines = section.split("\n");
@@ -475,6 +653,7 @@ AffiliateAI Pro - MVP Local`;
       doc.setTextColor(0, 120, 70);
 
       const titleLines = doc.splitTextToSize(title, usableWidth);
+
       titleLines.forEach((line: string) => {
         if (y > pageHeight - marginBottom) {
           addNewPage();
@@ -511,6 +690,16 @@ AffiliateAI Pro - MVP Local`;
     setCopyMessage("Campanha exportada em PDF com sucesso.");
   }
 
+  function formatDate(value?: string) {
+    if (!value) return "Data não encontrada";
+
+    try {
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return value;
+    }
+  }
+
   return (
     <section className="packagePanel">
       <div className="packageHeader">
@@ -521,15 +710,19 @@ AffiliateAI Pro - MVP Local`;
 
           <p>
             Junte automaticamente a última campanha, análise, conteúdo e criativo
-            visual em uma entrega única pronta para copiar, postar ou exportar
-            como arquivo.
+            visual em uma entrega única pronta para copiar, postar, exportar ou
+            salvar no banco.
           </p>
         </div>
 
         <div className="packageStatus">
           <span>Status</span>
           <strong>{loading ? "Montando" : "Pronto"}</strong>
-          <p>Usando os últimos dados salvos no histórico.</p>
+          <p>
+            {savedPackagePreview
+              ? "Pacote salvo carregado do banco."
+              : "Usando os últimos dados salvos no histórico."}
+          </p>
         </div>
       </div>
 
@@ -541,18 +734,25 @@ AffiliateAI Pro - MVP Local`;
         <button
           className="primaryButton"
           onClick={() =>
-            copyText(packageText, "Campanha completa copiada.")
+            copyText(activePackageText, "Campanha completa copiada.")
           }
-          disabled={!hasAnyData}
+          disabled={!hasExportableData}
         >
           Copiar campanha completa
         </button>
 
-        <button onClick={exportTxtFile} disabled={!hasAnyData}>
+        <button
+          onClick={savePackageToDatabase}
+          disabled={!hasAnyData || savingPackage}
+        >
+          {savingPackage ? "Salvando..." : "Salvar no banco"}
+        </button>
+
+        <button onClick={exportTxtFile} disabled={!hasExportableData}>
           Exportar .TXT
         </button>
 
-        <button onClick={exportPdfFile} disabled={!hasAnyData}>
+        <button onClick={exportPdfFile} disabled={!hasExportableData}>
           Exportar PDF
         </button>
       </div>
@@ -560,7 +760,7 @@ AffiliateAI Pro - MVP Local`;
       {errorMessage && <p className="errorMessage">{errorMessage}</p>}
       {copyMessage && <p className="successMessage">{copyMessage}</p>}
 
-      {!hasAnyData && !loading && (
+      {!hasAnyData && !loading && !savedPackagePreview && (
         <div className="packageEmpty">
           Gere pelo menos uma campanha no Autopilot, um conteúdo no Content
           Generator e um criativo no Creative Image para montar o pacote completo.
@@ -596,29 +796,19 @@ AffiliateAI Pro - MVP Local`;
               <h3>Resumo da campanha</h3>
 
               <p>
-                <strong>Produto:</strong>{" "}
-                {getValue(autopilot, ["selected_product"]) ||
-                  getValue(contentGenerator, ["product_name"]) ||
-                  getValue(creativeImage, ["product_name"]) ||
-                  "Produto não encontrado"}
+                <strong>Produto:</strong> {getPackageProductName()}
               </p>
 
               <p>
-                <strong>Nicho:</strong>{" "}
-                {getValue(autopilot, ["niche"]) ||
-                  getValue(contentGenerator, ["niche"]) ||
-                  getValue(creativeImage, ["niche"]) ||
-                  "Nicho não encontrado"}
+                <strong>Nicho:</strong> {getPackageNiche()}
               </p>
 
               <p>
-                <strong>Score:</strong>{" "}
-                {getValue(autopilot, ["score"], "--")}/100
+                <strong>Score:</strong> {getPackageScore()}/100
               </p>
 
               <p>
-                <strong>Decisão:</strong>{" "}
-                {getValue(autopilot, ["decision"], "Sem decisão")}
+                <strong>Decisão:</strong> {getPackageDecision()}
               </p>
             </div>
 
@@ -727,36 +917,90 @@ AffiliateAI Pro - MVP Local`;
               </p>
             </div>
           </div>
-
-          <div className="packageFinalBox">
-            <div>
-              <span>Entrega final</span>
-              <h3>Campanha completa pronta para copiar ou exportar</h3>
-              <p>
-                Esse bloco junta todos os agentes em uma única entrega. Agora
-                você pode baixar essa campanha como .TXT ou PDF no seu PC.
-              </p>
-            </div>
-
-            <textarea readOnly value={packageText} />
-
-            <div className="packageActions">
-              <button
-                className="primaryButton"
-                onClick={() =>
-                  copyText(packageText, "Campanha completa copiada.")
-                }
-              >
-                Copiar tudo
-              </button>
-
-              <button onClick={exportTxtFile}>Baixar .TXT</button>
-
-              <button onClick={exportPdfFile}>Baixar PDF</button>
-            </div>
-          </div>
         </>
       )}
+
+      {hasExportableData && (
+        <div className="packageFinalBox">
+          <div>
+            <span>
+              {savedPackagePreview ? "Pacote salvo aberto" : "Entrega final"}
+            </span>
+
+            <h3>Campanha completa pronta para copiar ou exportar</h3>
+
+            <p>
+              Esse bloco junta todos os agentes em uma única entrega. Você pode
+              copiar, baixar como .TXT, baixar como PDF ou salvar o pacote no
+              banco.
+            </p>
+          </div>
+
+          <textarea readOnly value={activePackageText} />
+
+          <div className="packageActions">
+            <button
+              className="primaryButton"
+              onClick={() =>
+                copyText(activePackageText, "Campanha completa copiada.")
+              }
+            >
+              Copiar tudo
+            </button>
+
+            <button onClick={exportTxtFile}>Baixar .TXT</button>
+
+            <button onClick={exportPdfFile}>Baixar PDF</button>
+          </div>
+        </div>
+      )}
+
+      <div className="packageSavedHistory">
+        <div className="packageSavedHistoryHeader">
+          <div>
+            <span>Banco de dados</span>
+            <h3>Histórico de pacotes salvos</h3>
+            <p>
+              Aqui ficam os pacotes finais salvos como entidade própria do
+              AffiliateAI Pro.
+            </p>
+          </div>
+
+          <button onClick={loadSavedPackages} disabled={loadingSavedPackages}>
+            {loadingSavedPackages ? "Atualizando..." : "Atualizar histórico"}
+          </button>
+        </div>
+
+        {savedPackages.length === 0 ? (
+          <div className="packageEmpty">
+            Nenhum pacote salvo ainda. Monte uma campanha e clique em Salvar no
+            banco.
+          </div>
+        ) : (
+          <div className="packageSavedHistoryList">
+            {savedPackages.map((item) => (
+              <button
+                key={item.id}
+                className="packageSavedHistoryItem"
+                onClick={() => openSavedPackage(Number(item.id))}
+              >
+                <div>
+                  <strong>{item.product_name}</strong>
+                  <span>
+                    {item.niche} • {item.marketplace} •{" "}
+                    {formatDate(item.created_at)}
+                  </span>
+                </div>
+
+                <div>
+                  <strong>{item.score}/100</strong>
+                  <span>{item.decision}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
