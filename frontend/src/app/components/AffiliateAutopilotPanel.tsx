@@ -77,6 +77,15 @@ type AffiliateAutopilotPanelProps = {
   token: string;
 };
 
+type UserPreferences = {
+  defaultNiche?: string;
+  defaultChannel?: string;
+  defaultCampaignStyle?: string;
+  defaultBudgetStyle?: string;
+  defaultMarketplace?: string;
+  language?: string;
+};
+
 export default function AffiliateAutopilotPanel({
   token,
 }: AffiliateAutopilotPanelProps) {
@@ -97,11 +106,45 @@ export default function AffiliateAutopilotPanel({
   const [history, setHistory] = useState<AutopilotHistoryItem[]>([]);
 
   useEffect(() => {
+    loadSavedPreferences();
     loadHistory();
   }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
+  }
+
+  function loadSavedPreferences() {
+    const savedPreferences = localStorage.getItem("affiliateai_preferences");
+
+    if (!savedPreferences) {
+      return;
+    }
+
+    try {
+      const preferences = JSON.parse(savedPreferences) as UserPreferences;
+
+      if (preferences.defaultNiche) {
+        setNiche(preferences.defaultNiche);
+        setTargetAudience(
+          `pessoas interessadas em soluções práticas no nicho de ${preferences.defaultNiche}`
+        );
+      }
+
+      if (preferences.defaultChannel) {
+        setMainChannel(preferences.defaultChannel);
+      }
+
+      if (preferences.defaultCampaignStyle) {
+        setCampaignStyle(preferences.defaultCampaignStyle);
+      }
+
+      if (preferences.defaultBudgetStyle) {
+        setBudgetStyle(preferences.defaultBudgetStyle);
+      }
+    } catch {
+      return;
+    }
   }
 
   async function loadHistory() {
@@ -247,7 +290,8 @@ export default function AffiliateAutopilotPanel({
           <h2>Autopilot Profissional de Afiliados</h2>
           <p>
             O sistema escolhe um produto, analisa oportunidade, monta campanha,
-            salva no banco e permite abrir campanhas antigas.
+            salva no banco e permite abrir campanhas antigas. Agora ele também
+            puxa os padrões salvos nas Configurações.
           </p>
         </div>
 
