@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -26,16 +25,6 @@ CampaignStyle = Literal[
     "agressivo",
 ]
 
-MarketplaceName = Literal[
-    "shopee",
-    "mercado_livre",
-    "amazon",
-    "hotmart",
-    "kiwify",
-    "monetizze",
-    "generic",
-]
-
 TrafficChannel = Literal[
     "tiktok",
     "instagram",
@@ -48,43 +37,26 @@ TrafficChannel = Literal[
 
 
 class AutopilotRequest(BaseModel):
-    niche: str = Field(..., min_length=2)
-    target_audience: str | None = None
-
+    niche: str = Field(..., min_length=2, examples=["beleza"])
+    target_audience: str | None = "pessoas interessadas no nicho"
     objective: AutopilotObjective = "vender"
     main_channel: TrafficChannel = "tiktok"
     budget_style: BudgetStyle = "organico"
     campaign_style: CampaignStyle = "viral"
 
-    preferred_marketplaces: list[MarketplaceName] = Field(
-        default_factory=lambda: ["shopee", "mercado_livre", "amazon", "hotmart"]
-    )
-
-
-class AutopilotHistoryItem(BaseModel):
-    id: int
-    niche: str
-    objective: str
-    main_channel: str
-    budget_style: str
-    campaign_style: str
-    status: str
-    created_at: datetime
-
-    model_config = {
-        "from_attributes": True,
-    }
-
 
 class AutopilotResponse(BaseModel):
-    id: int | None = None
-    agent: str = "Affiliate Autopilot"
-    status: str = "completed"
-
+    agent: str
+    status: str
     niche: str
-    objective: str
-    main_channel: str
-    budget_style: str
-    campaign_style: str
-
-    package: dict[str, Any]
+    selected_product: str
+    marketplace: str
+    score: int
+    decision: str
+    strategy: str
+    headline: str
+    short_copy: str
+    video_script: str
+    image_brief: str
+    voiceover_script: str
+    checklist: list[str]
