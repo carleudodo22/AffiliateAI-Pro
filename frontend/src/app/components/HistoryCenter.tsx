@@ -8,11 +8,20 @@ type HistoryCenterProps = {
   token: string;
 };
 
-type HistoryType = "all" | "autopilot" | "product_hunter" | "content_generator";
+type HistoryType =
+  | "all"
+  | "autopilot"
+  | "product_hunter"
+  | "content_generator"
+  | "creative_image";
 
 type HistoryRecord = {
   id: number;
-  type: "autopilot" | "product_hunter" | "content_generator";
+  type:
+    | "autopilot"
+    | "product_hunter"
+    | "content_generator"
+    | "creative_image";
   title: string;
   subtitle: string;
   score?: number | string;
@@ -27,9 +36,10 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
   const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(
     null
   );
-  const [selectedDetails, setSelectedDetails] = useState<Record<string, any> | null>(
-    null
-  );
+  const [selectedDetails, setSelectedDetails] = useState<Record<
+    string,
+    any
+  > | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -45,6 +55,7 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
     window.addEventListener("autopilot-history-updated", refreshHistory);
     window.addEventListener("product-hunter-history-updated", refreshHistory);
     window.addEventListener("content-generator-history-updated", refreshHistory);
+    window.addEventListener("creative-image-history-updated", refreshHistory);
 
     return () => {
       window.removeEventListener("autopilot-history-updated", refreshHistory);
@@ -54,6 +65,10 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
       );
       window.removeEventListener(
         "content-generator-history-updated",
+        refreshHistory
+      );
+      window.removeEventListener(
+        "creative-image-history-updated",
         refreshHistory
       );
     };
@@ -74,13 +89,22 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
   function formatType(type: HistoryRecord["type"]) {
     if (type === "autopilot") return "Autopilot";
     if (type === "product_hunter") return "Product Hunter";
-    return "Content Generator";
+    if (type === "content_generator") return "Content Generator";
+    return "Creative Image";
   }
 
   function getEndpointByType(type: HistoryRecord["type"], id: number) {
     if (type === "autopilot") return `${API_URL}/api/autopilot/${id}`;
-    if (type === "product_hunter") return `${API_URL}/api/product-hunter/${id}`;
-    return `${API_URL}/api/content-generator/${id}`;
+
+    if (type === "product_hunter") {
+      return `${API_URL}/api/product-hunter/${id}`;
+    }
+
+    if (type === "content_generator") {
+      return `${API_URL}/api/content-generator/${id}`;
+    }
+
+    return `${API_URL}/api/creative-image/${id}`;
   }
 
   async function loadHistory() {
@@ -99,18 +123,25 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         Authorization: `Bearer ${currentToken}`,
       };
 
-      const [autopilotResponse, productHunterResponse, contentResponse] =
-        await Promise.allSettled([
-          fetch(`${API_URL}/api/autopilot/history`, {
-            headers: requestHeaders,
-          }),
-          fetch(`${API_URL}/api/product-hunter/history`, {
-            headers: requestHeaders,
-          }),
-          fetch(`${API_URL}/api/content-generator/history`, {
-            headers: requestHeaders,
-          }),
-        ]);
+      const [
+        autopilotResponse,
+        productHunterResponse,
+        contentResponse,
+        creativeImageResponse,
+      ] = await Promise.allSettled([
+        fetch(`${API_URL}/api/autopilot/history`, {
+          headers: requestHeaders,
+        }),
+        fetch(`${API_URL}/api/product-hunter/history`, {
+          headers: requestHeaders,
+        }),
+        fetch(`${API_URL}/api/content-generator/history`, {
+          headers: requestHeaders,
+        }),
+        fetch(`${API_URL}/api/creative-image/history`, {
+          headers: requestHeaders,
+        }),
+      ]);
 
       const allRecords: HistoryRecord[] = [];
 
@@ -190,9 +221,33 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         }
       }
 
+      if (
+        creativeImageResponse.status === "fulfilled" &&
+        creativeImageResponse.value.ok
+      ) {
+        const creativeImageData = await creativeImageResponse.value.json();
+
+        if (Array.isArray(creativeImageData)) {
+          for (const item of creativeImageData) {
+            allRecords.push({
+              id: Number(item.id),
+              type: "creative_image",
+              title: item.product_name || "Criativo visual",
+              subtitle: `${item.niche || "nicho"} • ${
+                item.platform || "plataforma"
+              } • ${item.creative_style || "estilo"}`,
+              status: item.status || "completed",
+              created_at: item.created_at,
+              raw: item,
+            });
+          }
+        }
+      }
+
       allRecords.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+
         return dateB - dateA;
       });
 
@@ -235,6 +290,7 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
       }
 
       const data = await response.json();
+
       setSelectedDetails(data);
     } catch (error) {
       if (error instanceof Error) {
@@ -299,6 +355,9 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
       content_generator: records.filter(
         (record) => record.type === "content_generator"
       ).length,
+      creative_image: records.filter(
+        (record) => record.type === "creative_image"
+      ).length,
     };
   }, [records]);
 
@@ -311,8 +370,8 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
           <h2>Central de Histórico</h2>
 
           <p>
-            Veja campanhas do Autopilot, análises do Product Hunter e conteúdos
-            gerados pelo Content Generator em um só lugar.
+            Veja campanhas, análises, conteúdos e criativos visuais gerados pelo
+            AffiliateAI Pro em um só lugar.
           </p>
         </div>
 
@@ -349,6 +408,13 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         >
           Content Generator <span>{counters.content_generator}</span>
         </button>
+
+        <button
+          className={activeType === "creative_image" ? "active" : ""}
+          onClick={() => setActiveType("creative_image")}
+        >
+          Creative Image <span>{counters.creative_image}</span>
+        </button>
       </div>
 
       {errorMessage && <p className="errorMessage">{errorMessage}</p>}
@@ -382,6 +448,7 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
                     {record.score !== undefined && (
                       <strong>{record.score}/100</strong>
                     )}
+
                     <span>{formatDate(record.created_at)}</span>
                   </div>
                 </button>
@@ -418,7 +485,9 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
                   <div>
                     <h4>Estratégia</h4>
                     <p>{getDetailValue(["strategy"])}</p>
-                    <button onClick={() => copyText(getDetailValue(["strategy"]))}>
+                    <button
+                      onClick={() => copyText(getDetailValue(["strategy"]))}
+                    >
                       Copiar
                     </button>
                   </div>
@@ -426,7 +495,9 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
                   <div>
                     <h4>Headline</h4>
                     <p>{getDetailValue(["headline"])}</p>
-                    <button onClick={() => copyText(getDetailValue(["headline"]))}>
+                    <button
+                      onClick={() => copyText(getDetailValue(["headline"]))}
+                    >
                       Copiar
                     </button>
                   </div>
@@ -539,7 +610,9 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
                   <div>
                     <h4>Headline</h4>
                     <p>{getDetailValue(["headline"])}</p>
-                    <button onClick={() => copyText(getDetailValue(["headline"]))}>
+                    <button
+                      onClick={() => copyText(getDetailValue(["headline"]))}
+                    >
                       Copiar
                     </button>
                   </div>
@@ -557,7 +630,9 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
                   <div>
                     <h4>Legenda</h4>
                     <p>{getDetailValue(["caption"])}</p>
-                    <button onClick={() => copyText(getDetailValue(["caption"]))}>
+                    <button
+                      onClick={() => copyText(getDetailValue(["caption"]))}
+                    >
                       Copiar
                     </button>
                   </div>
@@ -606,6 +681,127 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
                     <h4>Variações de anúncio</h4>
                     <ul>
                       {getDetailList(["ad_variations"]).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {selectedRecord.type === "creative_image" && (
+                <div className="historyDetailsGrid">
+                  <div>
+                    <h4>Título da arte</h4>
+                    <p>{getDetailValue(["art_headline"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["art_headline"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Subtítulo</h4>
+                    <p>{getDetailValue(["art_subtitle"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["art_subtitle"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>CTA</h4>
+                    <p>{getDetailValue(["cta"])}</p>
+                    <button onClick={() => copyText(getDetailValue(["cta"]))}>
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Paleta</h4>
+                    <p>{getDetailList(["color_palette"]).join(", ")}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailList(["color_palette"]).join(", "))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Briefing visual</h4>
+                    <p>{getDetailValue(["visual_brief"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["visual_brief"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Prompt de imagem</h4>
+                    <p>{getDetailValue(["image_prompt"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["image_prompt"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Negative prompt</h4>
+                    <p>{getDetailValue(["negative_prompt"])}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailValue(["negative_prompt"]))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Layout</h4>
+                    <p>{getDetailValue(["layout_direction"])}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailValue(["layout_direction"]))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Fundo</h4>
+                    <p>{getDetailValue(["background_style"])}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailValue(["background_style"]))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Tipografia</h4>
+                    <p>{getDetailValue(["typography_direction"])}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailValue(["typography_direction"]))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Checklist</h4>
+                    <ul>
+                      {getDetailList(["checklist"]).map((item) => (
                         <li key={item}>{item}</li>
                       ))}
                     </ul>

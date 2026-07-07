@@ -29,6 +29,18 @@ type ContentGeneratorHistoryItem = {
   created_at: string;
 };
 
+type CreativeImageHistoryItem = {
+  id: number;
+  product_name: string;
+  niche: string;
+  platform: string;
+  creative_style: string;
+  objective: string;
+  art_headline: string;
+  status: string;
+  created_at: string;
+};
+
 type ProductHunterHistoryItem = Record<string, any>;
 
 type UserPreferences = {
@@ -62,6 +74,10 @@ export default function DashboardOverview() {
     ContentGeneratorHistoryItem[]
   >([]);
 
+  const [creativeImageHistory, setCreativeImageHistory] = useState<
+    CreativeImageHistoryItem[]
+  >([]);
+
   const [preferences, setPreferences] =
     useState<UserPreferences>(DEFAULT_PREFERENCES);
 
@@ -77,6 +93,7 @@ export default function DashboardOverview() {
     window.addEventListener("autopilot-history-updated", refreshDashboard);
     window.addEventListener("product-hunter-history-updated", refreshDashboard);
     window.addEventListener("content-generator-history-updated", refreshDashboard);
+    window.addEventListener("creative-image-history-updated", refreshDashboard);
 
     return () => {
       window.removeEventListener("autopilot-history-updated", refreshDashboard);
@@ -86,6 +103,10 @@ export default function DashboardOverview() {
       );
       window.removeEventListener(
         "content-generator-history-updated",
+        refreshDashboard
+      );
+      window.removeEventListener(
+        "creative-image-history-updated",
         refreshDashboard
       );
     };
@@ -128,6 +149,7 @@ export default function DashboardOverview() {
         setAutopilotHistory([]);
         setProductHunterHistory([]);
         setContentHistory([]);
+        setCreativeImageHistory([]);
         return;
       }
 
@@ -135,18 +157,25 @@ export default function DashboardOverview() {
         Authorization: `Bearer ${token}`,
       };
 
-      const [autopilotResponse, productHunterResponse, contentResponse] =
-        await Promise.allSettled([
-          fetch(`${API_URL}/api/autopilot/history`, {
-            headers: requestHeaders,
-          }),
-          fetch(`${API_URL}/api/product-hunter/history`, {
-            headers: requestHeaders,
-          }),
-          fetch(`${API_URL}/api/content-generator/history`, {
-            headers: requestHeaders,
-          }),
-        ]);
+      const [
+        autopilotResponse,
+        productHunterResponse,
+        contentResponse,
+        creativeImageResponse,
+      ] = await Promise.allSettled([
+        fetch(`${API_URL}/api/autopilot/history`, {
+          headers: requestHeaders,
+        }),
+        fetch(`${API_URL}/api/product-hunter/history`, {
+          headers: requestHeaders,
+        }),
+        fetch(`${API_URL}/api/content-generator/history`, {
+          headers: requestHeaders,
+        }),
+        fetch(`${API_URL}/api/creative-image/history`, {
+          headers: requestHeaders,
+        }),
+      ]);
 
       if (
         autopilotResponse.status === "fulfilled" &&
@@ -176,10 +205,24 @@ export default function DashboardOverview() {
       } else {
         setContentHistory([]);
       }
+
+      if (
+        creativeImageResponse.status === "fulfilled" &&
+        creativeImageResponse.value.ok
+      ) {
+        const creativeImageData = await creativeImageResponse.value.json();
+
+        setCreativeImageHistory(
+          Array.isArray(creativeImageData) ? creativeImageData : []
+        );
+      } else {
+        setCreativeImageHistory([]);
+      }
     } catch {
       setAutopilotHistory([]);
       setProductHunterHistory([]);
       setContentHistory([]);
+      setCreativeImageHistory([]);
     } finally {
       setLoading(false);
     }
@@ -220,6 +263,7 @@ export default function DashboardOverview() {
       popular: "Popular",
       emocional: "Emocional",
       agressivo: "Agressivo",
+      minimalista: "Minimalista",
     };
 
     return styles[style || ""] || style || "Nenhum";
@@ -237,6 +281,7 @@ export default function DashboardOverview() {
     const totalCampaigns = autopilotHistory.length;
     const totalProductAnalyses = productHunterHistory.length;
     const totalContents = contentHistory.length;
+    const totalCreativeImages = creativeImageHistory.length;
 
     const averageScore =
       totalCampaigns > 0
@@ -256,6 +301,9 @@ export default function DashboardOverview() {
 
     const lastContent = contentHistory.length > 0 ? contentHistory[0] : null;
 
+    const lastCreativeImage =
+      creativeImageHistory.length > 0 ? creativeImageHistory[0] : null;
+
     const lastProductAnalysis =
       productHunterHistory.length > 0 ? productHunterHistory[0] : null;
 
@@ -270,26 +318,42 @@ export default function DashboardOverview() {
       channelCount[item.platform] = (channelCount[item.platform] || 0) + 1;
     }
 
+    for (const item of creativeImageHistory) {
+      channelCount[item.platform] = (channelCount[item.platform] || 0) + 1;
+    }
+
     const topChannel =
       Object.entries(channelCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
       preferences.defaultChannel ||
       "Nenhum";
 
-    const totalActions = totalCampaigns + totalProductAnalyses + totalContents;
+    const totalActions =
+      totalCampaigns +
+      totalProductAnalyses +
+      totalContents +
+      totalCreativeImages;
 
     return {
       totalCampaigns,
       totalProductAnalyses,
       totalContents,
+      totalCreativeImages,
       totalActions,
       averageScore,
       bestCampaign,
       lastCampaign,
       lastContent,
+      lastCreativeImage,
       lastProductAnalysis,
       topChannel,
     };
-  }, [autopilotHistory, productHunterHistory, contentHistory, preferences]);
+  }, [
+    autopilotHistory,
+    productHunterHistory,
+    contentHistory,
+    creativeImageHistory,
+    preferences,
+  ]);
 
   return (
     <section className="dashboardPanel">
@@ -300,8 +364,9 @@ export default function DashboardOverview() {
           <h2>Dashboard AffiliateAI Pro</h2>
 
           <p>
-            Acompanhe campanhas, análises, conteúdos gerados, preferências
-            salvas e status dos agentes principais do seu SaaS de afiliados.
+            Acompanhe campanhas, análises, conteúdos, criativos visuais,
+            preferências salvas e status dos agentes principais do seu SaaS de
+            afiliados.
           </p>
         </div>
 
@@ -332,13 +397,19 @@ export default function DashboardOverview() {
         </div>
 
         <div className="dashboardCard">
-          <span>Ações totais</span>
-          <strong>{metrics.totalActions}</strong>
-          <small>Campanhas + análises + conteúdos</small>
+          <span>Criativos visuais</span>
+          <strong>{metrics.totalCreativeImages}</strong>
+          <small>Creative Image</small>
         </div>
       </div>
 
       <div className="dashboardMetrics">
+        <div className="dashboardCard">
+          <span>Ações totais</span>
+          <strong>{metrics.totalActions}</strong>
+          <small>Campanhas + análises + conteúdos + criativos</small>
+        </div>
+
         <div className="dashboardCard">
           <span>Score médio</span>
           <strong>{metrics.averageScore}/100</strong>
@@ -361,12 +432,6 @@ export default function DashboardOverview() {
           <span>Canal principal</span>
           <strong>{formatChannel(metrics.topChannel)}</strong>
           <small>Canal mais usado nos agentes</small>
-        </div>
-
-        <div className="dashboardCard">
-          <span>Nicho padrão</span>
-          <strong>{preferences.defaultNiche || "beleza"}</strong>
-          <small>Salvo nas Configurações</small>
         </div>
       </div>
 
@@ -506,6 +571,26 @@ export default function DashboardOverview() {
 
       <div className="dashboardSplit">
         <div className="dashboardBox">
+          <h3>Último criativo visual</h3>
+
+          {metrics.lastCreativeImage ? (
+            <div className="dashboardCampaign">
+              <strong>{metrics.lastCreativeImage.product_name}</strong>
+              <span>
+                {metrics.lastCreativeImage.niche} •{" "}
+                {formatChannel(metrics.lastCreativeImage.platform)} •{" "}
+                {formatStyle(metrics.lastCreativeImage.creative_style)}
+              </span>
+              <p>{metrics.lastCreativeImage.art_headline}</p>
+            </div>
+          ) : (
+            <p className="dashboardEmpty">
+              Nenhum criativo visual criado ainda. Vá para Creative Image.
+            </p>
+          )}
+        </div>
+
+        <div className="dashboardBox">
           <h3>Última análise de produto</h3>
 
           {metrics.lastProductAnalysis ? (
@@ -542,7 +627,9 @@ export default function DashboardOverview() {
             </p>
           )}
         </div>
+      </div>
 
+      <div className="dashboardSplit">
         <div className="dashboardBox">
           <h3>Status dos agentes</h3>
 
@@ -563,9 +650,28 @@ export default function DashboardOverview() {
             </div>
 
             <div>
+              <span>Creative Image</span>
+              <strong>Salvando histórico</strong>
+            </div>
+
+            <div>
               <span>Histórico Geral</span>
               <strong>Unificado</strong>
             </div>
+          </div>
+        </div>
+
+        <div className="dashboardBox">
+          <h3>Próxima evolução</h3>
+
+          <div className="dashboardCampaign">
+            <strong>Exportar campanha completa</strong>
+            <span>Autopilot + Conteúdo + Criativo</span>
+            <p>
+              O próximo passo forte é criar um pacote exportável da campanha,
+              juntando estratégia, copy, roteiro, prompt visual e checklist em
+              uma entrega só.
+            </p>
           </div>
         </div>
       </div>
@@ -574,12 +680,12 @@ export default function DashboardOverview() {
         <div>
           <span>Próximo passo recomendado</span>
 
-          <h3>Criar Creative Image Agent</h3>
+          <h3>Criar exportação de campanha completa</h3>
 
           <p>
-            Agora que campanhas, análises e conteúdos já aparecem no histórico,
-            o próximo avanço forte é criar um agente para gerar briefing visual,
-            prompt de imagem, texto da arte e estrutura 9:16 para afiliados.
+            Agora o sistema já cria e salva campanhas, análises, conteúdos e
+            criativos. O próximo avanço é gerar um pacote final copiável ou
+            exportável com tudo pronto para postar.
           </p>
         </div>
 

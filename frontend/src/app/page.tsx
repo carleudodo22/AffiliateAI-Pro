@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AffiliateAutopilotPanel from "./components/AffiliateAutopilotPanel";
 import ContentGeneratorPanel from "./components/ContentGeneratorPanel";
+import CreativeImagePanel from "./components/CreativeImagePanel";
 import DashboardOverview from "./components/DashboardOverview";
 import HistoryCenter from "./components/HistoryCenter";
 import ProductHunterPanel from "./components/ProductHunterPanel";
@@ -29,6 +30,7 @@ type AppTab =
   | "autopilot"
   | "product_hunter"
   | "content_generator"
+  | "creative_image"
   | "history"
   | "settings";
 
@@ -171,6 +173,34 @@ export default function Home() {
     setActiveTab("dashboard");
   }
 
+  function renderSettingsIcon() {
+    return (
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12 15.2A3.2 3.2 0 1 0 12 8.8a3.2 3.2 0 0 0 0 6.4Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.02-1.58a.5.5 0 0 0 .12-.64l-1.91-3.31a.5.5 0 0 0-.61-.22l-2.38.96a7.2 7.2 0 0 0-1.7-.98L14.6 2.72A.5.5 0 0 0 14.11 2h-3.82a.5.5 0 0 0-.49.42L9.43 4.95c-.61.24-1.18.57-1.7.98l-2.38-.96a.5.5 0 0 0-.61.22L2.83 8.5a.5.5 0 0 0 .12.64l2.02 1.58c-.04.32-.07.65-.07.98s.02.66.07.98l-2.02 1.58a.5.5 0 0 0-.12.64l1.91 3.31a.5.5 0 0 0 .61.22l2.38-.96c.52.4 1.09.73 1.7.98l.37 2.53a.5.5 0 0 0 .49.42h3.82a.5.5 0 0 0 .49-.42l.37-2.53c.61-.24 1.18-.57 1.7-.98l2.38.96a.5.5 0 0 0 .61-.22l1.91-3.31a.5.5 0 0 0-.12-.64l-2.02-1.58Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
   function renderTabContent() {
     if (activeTab === "dashboard") {
       return <DashboardOverview />;
@@ -186,6 +216,10 @@ export default function Home() {
 
     if (activeTab === "content_generator") {
       return <ContentGeneratorPanel token={token} />;
+    }
+
+    if (activeTab === "creative_image") {
+      return <CreativeImagePanel token={token} />;
     }
 
     if (activeTab === "history") {
@@ -320,12 +354,27 @@ export default function Home() {
 
       <section className="hero appHero">
         <div className="topBar">
-          <div>
+          <div className="topUserInfo">
             <strong>{user.name}</strong>
             <span>{user.email}</span>
           </div>
 
-          <button onClick={logout}>Sair</button>
+          <div className="topActions">
+            <button
+              className={`topSettingsButton ${
+                activeTab === "settings" ? "active" : ""
+              }`}
+              onClick={() => setActiveTab("settings")}
+              title="Configurações"
+              aria-label="Abrir configurações"
+            >
+              {renderSettingsIcon()}
+            </button>
+
+            <button className="logoutButton" onClick={logout}>
+              Sair
+            </button>
+          </div>
         </div>
 
         <div className="badge">
@@ -374,17 +423,17 @@ export default function Home() {
           </button>
 
           <button
+            className={activeTab === "creative_image" ? "active" : ""}
+            onClick={() => setActiveTab("creative_image")}
+          >
+            Creative Image
+          </button>
+
+          <button
             className={activeTab === "history" ? "active" : ""}
             onClick={() => setActiveTab("history")}
           >
             Histórico
-          </button>
-
-          <button
-            className={activeTab === "settings" ? "active" : ""}
-            onClick={() => setActiveTab("settings")}
-          >
-            Configurações
           </button>
         </div>
       </section>
