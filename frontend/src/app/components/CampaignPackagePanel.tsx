@@ -337,10 +337,56 @@ ${
   checklist.length > 0
     ? checklist.map((item, index) => `${index + 1}. ${item}`).join("\n")
     : "Checklist não gerado."
-}`;
+}
+
+GERADO PELO:
+AffiliateAI Pro - MVP Local`;
   }, [autopilot, productHunter, contentGenerator, creativeImage]);
 
   const hasAnyData = autopilot || productHunter || contentGenerator || creativeImage;
+
+  function getExportFileName() {
+    const productName =
+      getValue(autopilot, ["selected_product"]) ||
+      getValue(contentGenerator, ["product_name"]) ||
+      getValue(creativeImage, ["product_name"]) ||
+      "campanha";
+
+    const cleanProductName = productName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const date = new Date().toISOString().slice(0, 10);
+
+    return `affiliateai-${cleanProductName || "campanha"}-${date}.txt`;
+  }
+
+  function exportTxtFile() {
+    if (!hasAnyData) {
+      setErrorMessage("Gere ou carregue uma campanha antes de exportar.");
+      return;
+    }
+
+    const blob = new Blob([packageText], {
+      type: "text/plain;charset=utf-8",
+    });
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+
+    downloadLink.href = downloadUrl;
+    downloadLink.download = getExportFileName();
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+
+    URL.revokeObjectURL(downloadUrl);
+
+    setCopyMessage("Campanha exportada em .TXT com sucesso.");
+  }
 
   return (
     <section className="packagePanel">
@@ -352,7 +398,8 @@ ${
 
           <p>
             Junte automaticamente a última campanha, análise, conteúdo e criativo
-            visual em uma entrega única pronta para copiar e postar.
+            visual em uma entrega única pronta para copiar, postar ou exportar
+            como arquivo.
           </p>
         </div>
 
@@ -376,6 +423,10 @@ ${
           disabled={!hasAnyData}
         >
           Copiar campanha completa
+        </button>
+
+        <button onClick={exportTxtFile} disabled={!hasAnyData}>
+          Exportar campanha .TXT
         </button>
       </div>
 
@@ -553,23 +604,27 @@ ${
           <div className="packageFinalBox">
             <div>
               <span>Entrega final</span>
-              <h3>Campanha completa pronta para copiar</h3>
+              <h3>Campanha completa pronta para copiar ou exportar</h3>
               <p>
-                Esse bloco junta todos os agentes em uma única entrega. Depois a
-                gente pode transformar isso em PDF, ZIP ou página de exportação.
+                Esse bloco junta todos os agentes em uma única entrega. Agora
+                você também pode baixar essa campanha como arquivo .TXT no seu PC.
               </p>
             </div>
 
             <textarea readOnly value={packageText} />
 
-            <button
-              className="primaryButton"
-              onClick={() =>
-                copyText(packageText, "Campanha completa copiada.")
-              }
-            >
-              Copiar tudo
-            </button>
+            <div className="packageActions">
+              <button
+                className="primaryButton"
+                onClick={() =>
+                  copyText(packageText, "Campanha completa copiada.")
+                }
+              >
+                Copiar tudo
+              </button>
+
+              <button onClick={exportTxtFile}>Baixar .TXT</button>
+            </div>
           </div>
         </>
       )}
