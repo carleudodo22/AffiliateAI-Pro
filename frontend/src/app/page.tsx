@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AffiliateAutopilotPanel from "./components/AffiliateAutopilotPanel";
+import CampaignPackagePanel from "./components/CampaignPackagePanel";
 import ContentGeneratorPanel from "./components/ContentGeneratorPanel";
 import CreativeImagePanel from "./components/CreativeImagePanel";
 import DashboardOverview from "./components/DashboardOverview";
@@ -31,6 +32,7 @@ type AppTab =
   | "product_hunter"
   | "content_generator"
   | "creative_image"
+  | "campaign_package"
   | "history"
   | "settings";
 
@@ -220,6 +222,10 @@ export default function Home() {
 
     if (activeTab === "creative_image") {
       return <CreativeImagePanel token={token} />;
+    }
+
+    if (activeTab === "campaign_package") {
+      return <CampaignPackagePanel token={token} />;
     }
 
     if (activeTab === "history") {
@@ -427,6 +433,13 @@ export default function Home() {
             onClick={() => setActiveTab("creative_image")}
           >
             Creative Image
+          </button>
+
+          <button
+            className={activeTab === "campaign_package" ? "active" : ""}
+            onClick={() => setActiveTab("campaign_package")}
+          >
+            Campaign Package
           </button>
 
           <button
