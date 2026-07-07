@@ -3609,3 +3609,451 @@ h1 span {
     grid-template-columns: 1fr;
   }
 }
+
+.authLandingPage {
+  min-height: 100vh;
+  display: grid;
+  align-items: center;
+}
+
+.authLandingShell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 56px 0;
+}
+
+.authLandingGrid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 28px;
+  align-items: center;
+}
+
+.authLandingContent h1 {
+  margin: 20px 0 18px;
+  color: white;
+  font-size: clamp(58px, 9vw, 118px);
+  line-height: 0.82;
+  letter-spacing: -0.095em;
+}
+
+.authLandingContent h1 span {
+  color: #00ff88;
+}
+
+.authLandingSubtitle {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.authLandingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.secondaryAuthButton {
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+.authLandingStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 26px;
+  max-width: 760px;
+}
+
+.authLandingStats div {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 255, 136, 0.13);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.1), transparent 48%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.authLandingStats strong {
+  display: block;
+  color: #00ff88;
+  font-size: 34px;
+  letter-spacing: -0.07em;
+}
+
+.authLandingStats span {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.authFeatureGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+  max-width: 760px;
+}
+
+.authFeatureGrid div {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.authFeatureGrid span {
+  display: block;
+  color: rgba(0, 255, 136, 0.78);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  margin-bottom: 9px;
+}
+
+.authFeatureGrid strong {
+  display: block;
+  color: white;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.authFeatureGrid p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.56);
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.authLandingPanel {
+  position: relative;
+  overflow: hidden;
+}
+
+.authLandingPanel::before {
+  content: "";
+  position: absolute;
+  inset: -80px -80px auto auto;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: rgba(0, 255, 136, 0.14);
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+.authLandingPanel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.authPanelFooter {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.authPanelFooter span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.authPanelFooter strong {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .authLandingGrid,
+  .authLandingStats,
+  .authFeatureGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .authLandingContent h1 {
+    font-size: clamp(48px, 15vw, 76px);
+  }
+}
+
+.topSystemButton {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  background:
+    radial-gradient(circle at top, rgba(0, 180, 255, 0.12), transparent 48%),
+    rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  line-height: 0;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.topSystemButton svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.topSystemButton:hover {
+  transform: translateY(-1px);
+  color: #00ff88;
+  border-color: rgba(0, 255, 136, 0.5);
+  background: rgba(0, 255, 136, 0.1);
+  box-shadow: 0 0 24px rgba(0, 255, 136, 0.18);
+}
+
+.topSystemButton.active {
+  color: #06110b;
+  background: #00ff88;
+  border-color: #00ff88;
+  box-shadow: 0 0 28px rgba(0, 255, 136, 0.34);
+}
+
+.systemPanel {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto 80px;
+  padding: 24px;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.12), transparent 40%),
+    rgba(0, 0, 0, 0.28);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
+}
+
+.systemHeader {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.systemEyebrow {
+  display: block;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+}
+
+.systemHeader h2 {
+  margin: 0 0 10px;
+  color: white;
+  font-size: clamp(34px, 5vw, 58px);
+  line-height: 0.94;
+  letter-spacing: -0.075em;
+}
+
+.systemHeader p {
+  max-width: 780px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  line-height: 1.75;
+}
+
+.systemVersionCard {
+  padding: 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.systemVersionCard span,
+.systemStatusCard span,
+.systemBox span,
+.systemRoadmap span {
+  display: block;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.systemVersionCard strong {
+  display: block;
+  color: #00ff88;
+  font-size: 23px;
+  margin-bottom: 8px;
+}
+
+.systemActions {
+  margin-bottom: 18px;
+}
+
+.systemActions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+.systemStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.systemStatusCard {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.systemStatusCard.online {
+  border-color: rgba(0, 255, 136, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.12), transparent 45%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.systemStatusCard.offline {
+  border-color: rgba(255, 70, 70, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(255, 70, 70, 0.12), transparent 45%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.systemStatusCard strong {
+  display: block;
+  color: white;
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.systemStatusCard.online strong {
+  color: #00ff88;
+}
+
+.systemStatusCard.offline strong {
+  color: #ff6b6b;
+}
+
+.systemStatusCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.56);
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.systemGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+}
+
+.systemBox,
+.systemRoadmap {
+  padding: 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.systemBox.large {
+  border-color: rgba(0, 255, 136, 0.16);
+}
+
+.systemBox h3,
+.systemRoadmap h3 {
+  margin: 0 0 14px;
+  color: white;
+  font-size: 26px;
+  letter-spacing: -0.055em;
+}
+
+.systemModuleList,
+.systemStackList,
+.systemRoadmapSteps {
+  display: grid;
+  gap: 10px;
+}
+
+.systemModuleList {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.systemModuleList div,
+.systemStackList div,
+.systemRoadmapSteps div {
+  padding: 14px;
+  border-radius: 17px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.systemModuleList strong,
+.systemStackList strong {
+  display: block;
+  color: #00ff88;
+  margin-bottom: 6px;
+}
+
+.systemModuleList p,
+.systemStackList p,
+.systemRoadmap p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.6;
+}
+
+.systemRoadmap {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 0.9fr;
+  gap: 18px;
+}
+
+.systemRoadmapSteps div {
+  color: white;
+  font-weight: 900;
+}
+
+@media (max-width: 980px) {
+  .systemHeader,
+  .systemStatusGrid,
+  .systemGrid,
+  .systemModuleList,
+  .systemRoadmap {
+    grid-template-columns: 1fr;
+  }
+}

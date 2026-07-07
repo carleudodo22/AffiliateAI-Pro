@@ -9,6 +9,7 @@ import DashboardOverview from "./components/DashboardOverview";
 import HistoryCenter from "./components/HistoryCenter";
 import ProductHunterPanel from "./components/ProductHunterPanel";
 import SettingsPanel from "./components/SettingsPanel";
+import SystemInfoPanel from "./components/SystemInfoPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -34,6 +35,7 @@ type AppTab =
   | "creative_image"
   | "campaign_package"
   | "history"
+  | "system"
   | "settings";
 
 export default function Home() {
@@ -192,12 +194,51 @@ export default function Home() {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+
         <path
           d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.02-1.58a.5.5 0 0 0 .12-.64l-1.91-3.31a.5.5 0 0 0-.61-.22l-2.38.96a7.2 7.2 0 0 0-1.7-.98L14.6 2.72A.5.5 0 0 0 14.11 2h-3.82a.5.5 0 0 0-.49.42L9.43 4.95c-.61.24-1.18.57-1.7.98l-2.38-.96a.5.5 0 0 0-.61.22L2.83 8.5a.5.5 0 0 0 .12.64l2.02 1.58c-.04.32-.07.65-.07.98s.02.66.07.98l-2.02 1.58a.5.5 0 0 0-.12.64l1.91 3.31a.5.5 0 0 0 .61.22l2.38-.96c.52.4 1.09.73 1.7.98l.37 2.53a.5.5 0 0 0 .49.42h3.82a.5.5 0 0 0 .49-.42l.37-2.53c.61-.24 1.18-.57 1.7-.98l2.38.96a.5.5 0 0 0 .61-.22l1.91-3.31a.5.5 0 0 0-.12-.64l-2.02-1.58Z"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  function renderSystemIcon() {
+    return (
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M4 5.5C4 4.67 4.67 4 5.5 4h13c.83 0 1.5.67 1.5 1.5v9c0 .83-.67 1.5-1.5 1.5h-13C4.67 16 4 15.33 4 14.5v-9Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 20h6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M12 16v4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M8 8h8M8 11h5"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
         />
       </svg>
     );
@@ -232,6 +273,10 @@ export default function Home() {
       return <HistoryCenter token={token} />;
     }
 
+    if (activeTab === "system") {
+      return <SystemInfoPanel />;
+    }
+
     return (
       <SettingsPanel
         token={token}
@@ -264,89 +309,159 @@ export default function Home() {
 
   if (!user || !token) {
     return (
-      <main className="page">
+      <main className="page authLandingPage">
         <div className="gridGlow" />
 
-        <section className="authShell">
-          <div className="badge">
-            <span className="pulse" />
-            AI Affiliate Marketing SaaS
-          </div>
+        <section className="authLandingShell">
+          <div className="authLandingGrid">
+            <div className="authLandingContent">
+              <div className="badge">
+                <span className="pulse" />
+                AI Affiliate Marketing SaaS
+              </div>
 
-          <h1>
-            AffiliateAI <span>Pro</span>
-          </h1>
+              <h1>
+                AffiliateAI <span>Pro</span>
+              </h1>
 
-          <p className="subtitle">
-            Entre na sua conta para acessar o painel inteligente de afiliados.
-          </p>
+              <p className="authLandingSubtitle">
+                Uma central inteligente para transformar produtos em campanhas
+                completas de afiliados com análise, conteúdo, criativo visual,
+                histórico e pacote final pronto para postar.
+              </p>
 
-          <div className="authPanel">
-            <div className="panelHeader">
-              <span className="dot" />
-              {authMode === "login" ? "Login" : "Criar Conta"}
+              <div className="authLandingActions">
+                <button
+                  className="primaryButton"
+                  onClick={() => setAuthMode("register")}
+                >
+                  Criar conta local
+                </button>
+
+                <button
+                  className="secondaryAuthButton"
+                  onClick={() => setAuthMode("login")}
+                >
+                  Entrar no painel
+                </button>
+              </div>
+
+              <div className="authLandingStats">
+                <div>
+                  <strong>6</strong>
+                  <span>módulos principais</span>
+                </div>
+
+                <div>
+                  <strong>4</strong>
+                  <span>agentes inteligentes</span>
+                </div>
+
+                <div>
+                  <strong>1</strong>
+                  <span>pacote final</span>
+                </div>
+              </div>
+
+              <div className="authFeatureGrid">
+                <div>
+                  <span>01</span>
+                  <strong>Autopilot</strong>
+                  <p>Cria estratégia, produto, copy, roteiro e checklist.</p>
+                </div>
+
+                <div>
+                  <span>02</span>
+                  <strong>Content Generator</strong>
+                  <p>Gera conteúdo pronto para TikTok, Reels, Shorts e WhatsApp.</p>
+                </div>
+
+                <div>
+                  <span>03</span>
+                  <strong>Creative Image</strong>
+                  <p>Monta prompt visual, texto da arte e direção 9:16.</p>
+                </div>
+
+                <div>
+                  <span>04</span>
+                  <strong>Campaign Package</strong>
+                  <p>Junta tudo em uma entrega final pronta para copiar.</p>
+                </div>
+              </div>
             </div>
 
-            <div className="authTabs">
-              <button
-                className={authMode === "login" ? "active" : ""}
-                onClick={() => setAuthMode("login")}
-              >
-                Login
-              </button>
+            <div className="authPanel authLandingPanel">
+              <div className="panelHeader">
+                <span className="dot" />
+                {authMode === "login" ? "Acessar painel" : "Criar acesso"}
+              </div>
 
-              <button
-                className={authMode === "register" ? "active" : ""}
-                onClick={() => setAuthMode("register")}
-              >
-                Cadastro
-              </button>
-            </div>
+              <div className="authTabs">
+                <button
+                  className={authMode === "login" ? "active" : ""}
+                  onClick={() => setAuthMode("login")}
+                >
+                  Login
+                </button>
 
-            <div className="authForm">
-              {authMode === "register" && (
+                <button
+                  className={authMode === "register" ? "active" : ""}
+                  onClick={() => setAuthMode("register")}
+                >
+                  Cadastro
+                </button>
+              </div>
+
+              <div className="authForm">
+                {authMode === "register" && (
+                  <label>
+                    Nome
+                    <input
+                      value={authName}
+                      onChange={(event) => setAuthName(event.target.value)}
+                      placeholder="Seu nome"
+                    />
+                  </label>
+                )}
+
                 <label>
-                  Nome
+                  Email
                   <input
-                    value={authName}
-                    onChange={(event) => setAuthName(event.target.value)}
-                    placeholder="Seu nome"
+                    value={authEmail}
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    placeholder="seuemail@email.com"
                   />
                 </label>
-              )}
 
-              <label>
-                Email
-                <input
-                  value={authEmail}
-                  onChange={(event) => setAuthEmail(event.target.value)}
-                  placeholder="seuemail@email.com"
-                />
-              </label>
+                <label>
+                  Senha
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    placeholder="Sua senha"
+                  />
+                </label>
 
-              <label>
-                Senha
-                <input
-                  type="password"
-                  value={authPassword}
-                  onChange={(event) => setAuthPassword(event.target.value)}
-                  placeholder="Sua senha"
-                />
-              </label>
+                <button
+                  className="primaryButton authButton"
+                  onClick={authMode === "login" ? login : register}
+                  disabled={loading}
+                >
+                  {loading
+                    ? "Processando..."
+                    : authMode === "login"
+                      ? "Entrar no painel"
+                      : "Criar conta"}
+                </button>
 
-              <button
-                className="primaryButton authButton"
-                onClick={authMode === "login" ? login : register}
-                disabled={loading}
-              >
-                {loading
-                  ? "Processando..."
-                  : authMode === "login"
-                    ? "Entrar"
-                    : "Criar conta"}
-              </button>
+                {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+              </div>
 
-              {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+              <div className="authPanelFooter">
+                <span>Ambiente local</span>
+                <strong>Backend conectado em localhost:8000</strong>
+              </div>
             </div>
           </div>
         </section>
@@ -366,6 +481,17 @@ export default function Home() {
           </div>
 
           <div className="topActions">
+            <button
+              className={`topSystemButton ${
+                activeTab === "system" ? "active" : ""
+              }`}
+              onClick={() => setActiveTab("system")}
+              title="Sistema"
+              aria-label="Abrir informações do sistema"
+            >
+              {renderSystemIcon()}
+            </button>
+
             <button
               className={`topSettingsButton ${
                 activeTab === "settings" ? "active" : ""
