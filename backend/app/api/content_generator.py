@@ -4,10 +4,9 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.content_generation import ContentGeneration
-from app.models.product_analysis import ProductAnalysis
 from app.models.user import User
 from app.schemas.content_generator import (
-    ContentGenerationHistoryItem,
+    ContentGeneratorHistoryItem,
     ContentGeneratorRequest,
     ContentGeneratorResponse,
 )
@@ -28,20 +27,6 @@ def generate_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if data.analysis_id is not None:
-        analysis = (
-            db.query(ProductAnalysis)
-            .filter(ProductAnalysis.id == data.analysis_id)
-            .filter(ProductAnalysis.user_id == current_user.id)
-            .first()
-        )
-
-        if analysis is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Análise não encontrada para este usuário.",
-            )
-
     return service.generate_content(
         data=data,
         db=db,
@@ -49,7 +34,7 @@ def generate_content(
     )
 
 
-@router.get("/history", response_model=list[ContentGenerationHistoryItem])
+@router.get("/history", response_model=list[ContentGeneratorHistoryItem])
 def list_content_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -58,7 +43,7 @@ def list_content_history(
         db.query(ContentGeneration)
         .filter(ContentGeneration.user_id == current_user.id)
         .order_by(ContentGeneration.created_at.desc())
-        .limit(20)
+        .limit(30)
         .all()
     )
 
@@ -69,20 +54,17 @@ def get_content_generation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    content_generation = (
+    content = (
         db.query(ContentGeneration)
         .filter(ContentGeneration.id == content_id)
         .filter(ContentGeneration.user_id == current_user.id)
         .first()
     )
 
-    if content_generation is None:
+    if content is None:
         raise HTTPException(
             status_code=404,
             detail="Conteúdo não encontrado.",
         )
 
-    data = content_generation.generated_data
-    data["id"] = content_generation.id
-
-    return data
+    return service.get_content_response(content)

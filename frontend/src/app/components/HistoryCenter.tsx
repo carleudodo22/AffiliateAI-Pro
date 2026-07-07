@@ -1,85 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-type AutopilotHistoryItem = {
-  id: number;
-  niche: string;
-  selected_product: string;
-  marketplace: string;
-  score: number;
-  decision: string;
-  main_channel: string;
-  campaign_style: string;
-  status: string;
-  created_at: string;
-};
-
-type AutopilotResult = {
-  id: number | null;
-  agent: string;
-  status: string;
-
-  niche: string;
-  target_audience: string | null;
-
-  objective: string;
-  main_channel: string;
-  budget_style: string;
-  campaign_style: string;
-
-  selected_product: string;
-  marketplace: string;
-  score: number;
-  decision: string;
-
-  strategy: string;
-  headline: string;
-  short_copy: string;
-  video_script: string;
-  image_brief: string;
-  voiceover_script: string;
-
-  checklist: string[];
-  campaign_package: {
-    product?: {
-      name?: string;
-      marketplace?: string;
-      average_price?: number;
-      commission_percent?: number;
-      reason?: string;
-    };
-    market_analysis?: {
-      demand_score?: number;
-      competition_score?: number;
-      visual_strength?: number;
-      impulse_buy?: number;
-      risk_level?: string;
-    };
-    content_package?: {
-      hashtags?: string[];
-      ctas?: string[];
-    };
-    publishing_plan?: {
-      posting_angle?: string;
-      test_variations?: string[];
-    };
-  };
-
-  created_at: string | null;
-};
 
 type HistoryCenterProps = {
   token: string;
 };
 
+type HistoryType = "all" | "autopilot" | "product_hunter" | "content_generator";
+
+type HistoryRecord = {
+  id: number;
+  type: "autopilot" | "product_hunter" | "content_generator";
+  title: string;
+  subtitle: string;
+  score?: number | string;
+  status: string;
+  created_at?: string;
+  raw: Record<string, any>;
+};
+
 export default function HistoryCenter({ token }: HistoryCenterProps) {
-  const [history, setHistory] = useState<AutopilotHistoryItem[]>([]);
-  const [selectedRun, setSelectedRun] = useState<AutopilotResult | null>(null);
+  const [activeType, setActiveType] = useState<HistoryType>("all");
+  const [records, setRecords] = useState<HistoryRecord[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(
+    null
+  );
+  const [selectedDetails, setSelectedDetails] = useState<Record<string, any> | null>(
+    null
+  );
+
   const [loading, setLoading] = useState(false);
-  const [opening, setOpening] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -90,14 +43,44 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
     }
 
     window.addEventListener("autopilot-history-updated", refreshHistory);
+    window.addEventListener("product-hunter-history-updated", refreshHistory);
+    window.addEventListener("content-generator-history-updated", refreshHistory);
 
     return () => {
       window.removeEventListener("autopilot-history-updated", refreshHistory);
+      window.removeEventListener(
+        "product-hunter-history-updated",
+        refreshHistory
+      );
+      window.removeEventListener(
+        "content-generator-history-updated",
+        refreshHistory
+      );
     };
   }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
+  }
+
+  function formatDate(date?: string) {
+    if (!date) {
+      return "Sem data";
+    }
+
+    return new Date(date).toLocaleString("pt-BR");
+  }
+
+  function formatType(type: HistoryRecord["type"]) {
+    if (type === "autopilot") return "Autopilot";
+    if (type === "product_hunter") return "Product Hunter";
+    return "Content Generator";
+  }
+
+  function getEndpointByType(type: HistoryRecord["type"], id: number) {
+    if (type === "autopilot") return `${API_URL}/api/autopilot/${id}`;
+    if (type === "product_hunter") return `${API_URL}/api/product-hunter/${id}`;
+    return `${API_URL}/api/content-generator/${id}`;
   }
 
   async function loadHistory() {
@@ -108,37 +91,129 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
       const currentToken = getToken();
 
       if (!currentToken) {
-        setHistory([]);
-        setLoading(false);
+        setRecords([]);
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/autopilot/history`, {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
-      });
+      const requestHeaders = {
+        Authorization: `Bearer ${currentToken}`,
+      };
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text);
+      const [autopilotResponse, productHunterResponse, contentResponse] =
+        await Promise.allSettled([
+          fetch(`${API_URL}/api/autopilot/history`, {
+            headers: requestHeaders,
+          }),
+          fetch(`${API_URL}/api/product-hunter/history`, {
+            headers: requestHeaders,
+          }),
+          fetch(`${API_URL}/api/content-generator/history`, {
+            headers: requestHeaders,
+          }),
+        ]);
+
+      const allRecords: HistoryRecord[] = [];
+
+      if (
+        autopilotResponse.status === "fulfilled" &&
+        autopilotResponse.value.ok
+      ) {
+        const autopilotData = await autopilotResponse.value.json();
+
+        if (Array.isArray(autopilotData)) {
+          for (const item of autopilotData) {
+            allRecords.push({
+              id: Number(item.id),
+              type: "autopilot",
+              title: item.selected_product || "Campanha Autopilot",
+              subtitle: `${item.niche || "nicho"} • ${
+                item.marketplace || "marketplace"
+              } • ${item.main_channel || "canal"}`,
+              score: item.score,
+              status: item.status || "completed",
+              created_at: item.created_at,
+              raw: item,
+            });
+          }
+        }
       }
 
-      const data: AutopilotHistoryItem[] = await response.json();
-      setHistory(data);
+      if (
+        productHunterResponse.status === "fulfilled" &&
+        productHunterResponse.value.ok
+      ) {
+        const productHunterData = await productHunterResponse.value.json();
+
+        if (Array.isArray(productHunterData)) {
+          for (const item of productHunterData) {
+            allRecords.push({
+              id: Number(item.id ?? item.analysis_id),
+              type: "product_hunter",
+              title:
+                item.product_name ||
+                item.selected_product ||
+                item.name ||
+                "Análise de produto",
+              subtitle: `${item.niche || item.category || "nicho"} • ${
+                item.marketplace || "marketplace"
+              } • ${item.traffic_channel || item.main_channel || "canal"}`,
+              score:
+                item?.score?.final_score ??
+                item.final_score ??
+                item.score ??
+                "--",
+              status: item.status || "completed",
+              created_at: item.created_at,
+              raw: item,
+            });
+          }
+        }
+      }
+
+      if (contentResponse.status === "fulfilled" && contentResponse.value.ok) {
+        const contentData = await contentResponse.value.json();
+
+        if (Array.isArray(contentData)) {
+          for (const item of contentData) {
+            allRecords.push({
+              id: Number(item.id),
+              type: "content_generator",
+              title: item.product_name || "Conteúdo gerado",
+              subtitle: `${item.niche || "nicho"} • ${
+                item.platform || "plataforma"
+              } • ${item.tone || "tom"}`,
+              status: item.status || "completed",
+              created_at: item.created_at,
+              raw: item,
+            });
+          }
+        }
+      }
+
+      allRecords.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      setRecords(allRecords);
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
         setErrorMessage("Erro ao carregar histórico.");
       }
+
+      setRecords([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function openRun(id: number) {
-    setOpening(true);
+  async function openRecord(record: HistoryRecord) {
+    setSelectedRecord(record);
+    setSelectedDetails(null);
+    setLoadingDetails(true);
     setErrorMessage("");
 
     try {
@@ -148,7 +223,7 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         throw new Error("Você precisa estar logado.");
       }
 
-      const response = await fetch(`${API_URL}/api/autopilot/${id}`, {
+      const response = await fetch(getEndpointByType(record.type, record.id), {
         headers: {
           Authorization: `Bearer ${currentToken}`,
         },
@@ -159,16 +234,16 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         throw new Error(text);
       }
 
-      const data: AutopilotResult = await response.json();
-      setSelectedRun(data);
+      const data = await response.json();
+      setSelectedDetails(data);
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao abrir campanha.");
+        setErrorMessage("Erro ao abrir item do histórico.");
       }
     } finally {
-      setOpening(false);
+      setLoadingDetails(false);
     }
   }
 
@@ -176,23 +251,68 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
     navigator.clipboard.writeText(text);
   }
 
-  function formatDate(date: string | null) {
-    if (!date) {
-      return "Data não disponível";
+  function getDetailValue(keys: string[], fallback = "") {
+    if (!selectedDetails) return fallback;
+
+    for (const key of keys) {
+      const value = key.split(".").reduce<any>((acc, part) => {
+        if (!acc) return undefined;
+        return acc[part];
+      }, selectedDetails);
+
+      if (value) return String(value);
     }
 
-    return new Date(date).toLocaleString("pt-BR");
+    return fallback;
   }
+
+  function getDetailList(keys: string[], fallback: string[] = []) {
+    if (!selectedDetails) return fallback;
+
+    for (const key of keys) {
+      const value = key.split(".").reduce<any>((acc, part) => {
+        if (!acc) return undefined;
+        return acc[part];
+      }, selectedDetails);
+
+      if (Array.isArray(value)) return value.map(String);
+    }
+
+    return fallback;
+  }
+
+  const filteredRecords = useMemo(() => {
+    if (activeType === "all") {
+      return records;
+    }
+
+    return records.filter((record) => record.type === activeType);
+  }, [records, activeType]);
+
+  const counters = useMemo(() => {
+    return {
+      all: records.length,
+      autopilot: records.filter((record) => record.type === "autopilot").length,
+      product_hunter: records.filter(
+        (record) => record.type === "product_hunter"
+      ).length,
+      content_generator: records.filter(
+        (record) => record.type === "content_generator"
+      ).length,
+    };
+  }, [records]);
 
   return (
     <section className="historyCenterPanel">
       <div className="historyCenterHeader">
         <div>
-          <span className="historyEyebrow">Central de histórico</span>
-          <h2>Histórico Geral</h2>
+          <span className="historyEyebrow">Histórico Geral</span>
+
+          <h2>Central de Histórico</h2>
+
           <p>
-            Consulte todas as campanhas criadas pelo Autopilot, abra detalhes e
-            copie os materiais gerados.
+            Veja campanhas do Autopilot, análises do Product Hunter e conteúdos
+            gerados pelo Content Generator em um só lugar.
           </p>
         </div>
 
@@ -201,44 +321,68 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         </button>
       </div>
 
+      <div className="historyTabs">
+        <button
+          className={activeType === "all" ? "active" : ""}
+          onClick={() => setActiveType("all")}
+        >
+          Tudo <span>{counters.all}</span>
+        </button>
+
+        <button
+          className={activeType === "autopilot" ? "active" : ""}
+          onClick={() => setActiveType("autopilot")}
+        >
+          Autopilot <span>{counters.autopilot}</span>
+        </button>
+
+        <button
+          className={activeType === "product_hunter" ? "active" : ""}
+          onClick={() => setActiveType("product_hunter")}
+        >
+          Product Hunter <span>{counters.product_hunter}</span>
+        </button>
+
+        <button
+          className={activeType === "content_generator" ? "active" : ""}
+          onClick={() => setActiveType("content_generator")}
+        >
+          Content Generator <span>{counters.content_generator}</span>
+        </button>
+      </div>
+
       {errorMessage && <p className="errorMessage">{errorMessage}</p>}
 
-      <div className="historyCenterLayout">
+      <div className="historyLayout">
         <div className="historyListPanel">
-          <div className="historyListHeader">
-            <strong>Campanhas salvas</strong>
-            <span>{history.length} registro(s)</span>
-          </div>
-
-          {history.length === 0 ? (
+          {filteredRecords.length === 0 ? (
             <div className="historyEmpty">
-              Nenhuma campanha encontrada. Rode o Autopilot para criar o primeiro
-              registro.
+              Nenhum item encontrado nessa categoria ainda.
             </div>
           ) : (
             <div className="historyList">
-              {history.map((item) => (
+              {filteredRecords.map((record) => (
                 <button
-                  key={item.id}
-                  className={
-                    selectedRun?.id === item.id
-                      ? "historyItem active"
-                      : "historyItem"
-                  }
-                  onClick={() => openRun(item.id)}
-                  disabled={opening}
+                  key={`${record.type}-${record.id}`}
+                  className={`historyItem ${
+                    selectedRecord?.id === record.id &&
+                    selectedRecord?.type === record.type
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() => openRecord(record)}
                 >
                   <div>
-                    <strong>{item.selected_product}</strong>
-                    <span>
-                      {item.niche} • {item.marketplace} • {item.main_channel}
-                    </span>
-                    <small>{formatDate(item.created_at)}</small>
+                    <span>{formatType(record.type)}</span>
+                    <strong>{record.title}</strong>
+                    <p>{record.subtitle}</p>
                   </div>
 
                   <div>
-                    <strong>{item.score}/100</strong>
-                    <span>{item.decision}</span>
+                    {record.score !== undefined && (
+                      <strong>{record.score}/100</strong>
+                    )}
+                    <span>{formatDate(record.created_at)}</span>
                   </div>
                 </button>
               ))}
@@ -247,127 +391,228 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
         </div>
 
         <div className="historyDetailsPanel">
-          {!selectedRun ? (
-            <div className="historyDetailsEmpty">
-              <span>Selecione uma campanha</span>
-              <h3>Abra um item do histórico</h3>
-              <p>
-                Ao abrir uma campanha, os detalhes aparecem aqui com estratégia,
-                copy, roteiro, brief de imagem, narração e checklist.
-              </p>
+          {!selectedRecord && (
+            <div className="historyEmpty">
+              Selecione um item do histórico para ver os detalhes.
             </div>
-          ) : (
-            <>
-              <div className="historyDetailsHero">
+          )}
+
+          {selectedRecord && loadingDetails && (
+            <div className="historyEmpty">Carregando detalhes...</div>
+          )}
+
+          {selectedRecord && selectedDetails && (
+            <div className="historyDetails">
+              <div className="historyDetailsHeader">
                 <div>
-                  <span>Campanha selecionada</span>
-                  <h3>{selectedRun.selected_product}</h3>
-                  <p>
-                    {selectedRun.niche} • {selectedRun.marketplace} •{" "}
-                    {formatDate(selectedRun.created_at)}
-                  </p>
+                  <span>{formatType(selectedRecord.type)}</span>
+                  <h3>{selectedRecord.title}</h3>
+                  <p>{selectedRecord.subtitle}</p>
                 </div>
 
-                <div>
-                  <span>Score</span>
-                  <strong>{selectedRun.score}/100</strong>
-                  <small>{selectedRun.decision}</small>
-                </div>
+                <strong>{selectedRecord.status}</strong>
               </div>
 
-              <div className="historyDetailMetrics">
-                <div>
-                  <span>Demanda</span>
-                  <strong>
-                    {selectedRun.campaign_package.market_analysis
-                      ?.demand_score ?? "--"}
-                  </strong>
-                </div>
+              {selectedRecord.type === "autopilot" && (
+                <div className="historyDetailsGrid">
+                  <div>
+                    <h4>Estratégia</h4>
+                    <p>{getDetailValue(["strategy"])}</p>
+                    <button onClick={() => copyText(getDetailValue(["strategy"]))}>
+                      Copiar
+                    </button>
+                  </div>
 
-                <div>
-                  <span>Concorrência</span>
-                  <strong>
-                    {selectedRun.campaign_package.market_analysis
-                      ?.competition_score ?? "--"}
-                  </strong>
-                </div>
+                  <div>
+                    <h4>Headline</h4>
+                    <p>{getDetailValue(["headline"])}</p>
+                    <button onClick={() => copyText(getDetailValue(["headline"]))}>
+                      Copiar
+                    </button>
+                  </div>
 
-                <div>
-                  <span>Visual</span>
-                  <strong>
-                    {selectedRun.campaign_package.market_analysis
-                      ?.visual_strength ?? "--"}
-                  </strong>
-                </div>
+                  <div>
+                    <h4>Copy curta</h4>
+                    <p>{getDetailValue(["short_copy"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["short_copy"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
 
-                <div>
-                  <span>Impulso</span>
-                  <strong>
-                    {selectedRun.campaign_package.market_analysis?.impulse_buy ??
-                      "--"}
-                  </strong>
-                </div>
-              </div>
+                  <div>
+                    <h4>Roteiro</h4>
+                    <p>{getDetailValue(["video_script"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["video_script"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
 
-              <div className="historyDetailGrid">
-                <div className="historyDetailCard">
-                  <h4>Estratégia</h4>
-                  <p>{selectedRun.strategy}</p>
-                  <button onClick={() => copyText(selectedRun.strategy)}>
-                    Copiar
-                  </button>
-                </div>
+                  <div>
+                    <h4>Brief de imagem</h4>
+                    <p>{getDetailValue(["image_brief"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["image_brief"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
 
-                <div className="historyDetailCard">
-                  <h4>Headline</h4>
-                  <p>{selectedRun.headline}</p>
-                  <button onClick={() => copyText(selectedRun.headline)}>
-                    Copiar
-                  </button>
+                  <div>
+                    <h4>Narração</h4>
+                    <p>{getDetailValue(["voiceover_script"])}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailValue(["voiceover_script"]))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                <div className="historyDetailCard">
-                  <h4>Copy curta</h4>
-                  <p>{selectedRun.short_copy}</p>
-                  <button onClick={() => copyText(selectedRun.short_copy)}>
-                    Copiar
-                  </button>
+              {selectedRecord.type === "product_hunter" && (
+                <div className="historyDetailsGrid">
+                  <div>
+                    <h4>Produto</h4>
+                    <p>
+                      {getDetailValue(
+                        ["product_name", "product.name", "name"],
+                        selectedRecord.title
+                      )}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4>Decisão</h4>
+                    <p>
+                      {getDetailValue(
+                        ["decision", "analysis.decision", "recommendation"],
+                        "Análise concluída."
+                      )}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4>Estratégia</h4>
+                    <p>
+                      {getDetailValue(
+                        [
+                          "strategy.positioning",
+                          "strategy",
+                          "analysis.strategy.positioning",
+                          "sales_strategy",
+                        ],
+                        "Use dor clara, demonstração visual e CTA direto."
+                      )}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4>Ideias</h4>
+                    <ul>
+                      {getDetailList(
+                        [
+                          "strategy.content_ideas",
+                          "analysis.strategy.content_ideas",
+                          "content_ideas",
+                        ],
+                        [
+                          "Mostrar antes e depois.",
+                          "Fazer demonstração rápida.",
+                          "Finalizar com CTA direto.",
+                        ]
+                      ).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
+              )}
 
-                <div className="historyDetailCard">
-                  <h4>Roteiro de vídeo</h4>
-                  <p>{selectedRun.video_script}</p>
-                  <button onClick={() => copyText(selectedRun.video_script)}>
-                    Copiar
-                  </button>
+              {selectedRecord.type === "content_generator" && (
+                <div className="historyDetailsGrid">
+                  <div>
+                    <h4>Headline</h4>
+                    <p>{getDetailValue(["headline"])}</p>
+                    <button onClick={() => copyText(getDetailValue(["headline"]))}>
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Copy curta</h4>
+                    <p>{getDetailValue(["short_copy"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["short_copy"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Legenda</h4>
+                    <p>{getDetailValue(["caption"])}</p>
+                    <button onClick={() => copyText(getDetailValue(["caption"]))}>
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Roteiro de vídeo</h4>
+                    <p>{getDetailValue(["video_script"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["video_script"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>WhatsApp</h4>
+                    <p>{getDetailValue(["whatsapp_text"])}</p>
+                    <button
+                      onClick={() => copyText(getDetailValue(["whatsapp_text"]))}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>CTA</h4>
+                    <p>{getDetailValue(["cta"])}</p>
+                    <button onClick={() => copyText(getDetailValue(["cta"]))}>
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Hashtags</h4>
+                    <p>{getDetailList(["hashtags"]).join(" ")}</p>
+                    <button
+                      onClick={() =>
+                        copyText(getDetailList(["hashtags"]).join(" "))
+                      }
+                    >
+                      Copiar
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4>Variações de anúncio</h4>
+                    <ul>
+                      {getDetailList(["ad_variations"]).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-
-                <div className="historyDetailCard">
-                  <h4>Brief de imagem</h4>
-                  <p>{selectedRun.image_brief}</p>
-                  <button onClick={() => copyText(selectedRun.image_brief)}>
-                    Copiar
-                  </button>
-                </div>
-
-                <div className="historyDetailCard">
-                  <h4>Narração</h4>
-                  <p>{selectedRun.voiceover_script}</p>
-                  <button onClick={() => copyText(selectedRun.voiceover_script)}>
-                    Copiar
-                  </button>
-                </div>
-              </div>
-
-              <div className="historyDetailCard">
-                <h4>Checklist</h4>
-                <ul>
-                  {selectedRun.checklist.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </>
+              )}
+            </div>
           )}
         </div>
       </div>

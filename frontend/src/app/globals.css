@@ -2769,3 +2769,207 @@ h1 span {
     align-items: flex-start;
   }
 }
+
+.historyTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.historyTabs button {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 900;
+}
+
+.historyTabs button.active {
+  color: #05110a;
+  background: #00ff88;
+  border-color: #00ff88;
+}
+
+.historyTabs button span {
+  margin-left: 6px;
+  opacity: 0.75;
+}
+
+.historyLayout {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 14px;
+}
+
+.historyListPanel,
+.historyDetailsPanel {
+  min-height: 420px;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.historyList {
+  display: grid;
+  gap: 10px;
+}
+
+.historyItem {
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 20px;
+  color: white;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.historyItem.active {
+  border-color: rgba(0, 255, 136, 0.5);
+  background: rgba(0, 255, 136, 0.08);
+}
+
+.historyItem span,
+.historyDetailsHeader span {
+  display: block;
+  color: rgba(0, 255, 136, 0.9);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.historyItem strong {
+  display: block;
+  color: white;
+  font-size: 15px;
+}
+
+.historyItem p {
+  margin: 7px 0 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.historyItem > div:last-child {
+  min-width: 110px;
+  text-align: right;
+}
+
+.historyItem > div:last-child span {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.historyEmpty {
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.58);
+  border-radius: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 20px;
+}
+
+.historyDetailsHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.historyDetailsHeader h3 {
+  margin: 0 0 8px;
+  color: white;
+  font-size: 28px;
+  letter-spacing: -0.055em;
+}
+
+.historyDetailsHeader p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.6;
+}
+
+.historyDetailsHeader > strong {
+  color: #00ff88;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.historyDetailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.historyDetailsGrid > div {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.historyDetailsGrid h4 {
+  margin: 0 0 10px;
+  color: #00ff88;
+}
+
+.historyDetailsGrid p,
+.historyDetailsGrid li {
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.65;
+}
+
+.historyDetailsGrid ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.historyDetailsGrid button {
+  margin-top: 12px;
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.075);
+  border: 1px solid rgba(0, 255, 136, 0.23);
+  font-weight: 900;
+}
+
+@media (max-width: 1000px) {
+  .historyLayout,
+  .historyDetailsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .historyDetailsHeader,
+  .historyItem {
+    flex-direction: column;
+  }
+
+  .historyItem > div:last-child {
+    text-align: left;
+  }
+}
