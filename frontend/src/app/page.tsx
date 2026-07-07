@@ -102,6 +102,7 @@ export default function Home() {
 
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [openingAnalysisId, setOpeningAnalysisId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   async function register() {
@@ -275,12 +276,53 @@ export default function Home() {
         throw new Error("Erro ao carregar histórico.");
       }
 
-      const data = await response.json();
+      const data: HistoryItem[] = await response.json();
       setHistory(data);
     } catch {
       setHistory([]);
     } finally {
       setLoadingHistory(false);
+    }
+  }
+
+  async function openAnalysisDetails(analysisId: number) {
+    setOpeningAnalysisId(analysisId);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/product-hunter/history/${analysisId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend respondeu erro ${response.status}: ${errorText}`);
+      }
+
+      const data: ProductHunterResponse = await response.json();
+
+      setResult(data);
+      setNiche(data.niche);
+      setProductName(data.product_name);
+      setMarketplace(data.marketplace);
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro desconhecido ao abrir análise.");
+      }
+    } finally {
+      setOpeningAnalysisId(null);
     }
   }
 
@@ -723,14 +765,21 @@ export default function Home() {
                     <strong>
                       #{item.id} · {item.product_name}
                     </strong>
+
                     <span>
                       {item.niche} · {item.marketplace} · {item.main_channel}
                     </span>
                   </div>
 
-                  <div className="historyScore">
-                    <strong>{item.final_score}</strong>
-                    <span>{item.decision}</span>
+                  <div className="historyActions">
+                    <div className="historyScore">
+                      <strong>{item.final_score}</strong>
+                      <span>{item.decision}</span>
+                    </div>
+
+                    <button onClick={() => openAnalysisDetails(item.id)}>
+                      {openingAnalysisId === item.id ? "Abrindo..." : "Abrir"}
+                    </button>
                   </div>
                 </article>
               ))}

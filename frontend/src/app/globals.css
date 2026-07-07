@@ -1,11 +1,11 @@
 :root {
   --bg: #020403;
-  --bg-soft: #07120a;
-  --panel: rgba(7, 18, 11, 0.92);
-  --panel-2: rgba(10, 28, 16, 0.82);
+  --bg-soft: #061109;
+  --panel: rgba(7, 18, 11, 0.94);
+  --panel-soft: rgba(57, 255, 20, 0.055);
   --green: #39ff14;
-  --green-2: #a7ff83;
-  --border: rgba(57, 255, 20, 0.28);
+  --green-light: #a7ff83;
+  --border: rgba(57, 255, 20, 0.26);
   --border-strong: rgba(57, 255, 20, 0.55);
   --text: #f0fff2;
   --muted: #9db5a2;
@@ -39,13 +39,15 @@ button {
   cursor: pointer;
 }
 
+/* BASE */
+
 .page {
   position: relative;
   min-height: 100vh;
-  padding: 28px 18px 70px;
+  padding: 30px 18px 70px;
   background:
-    radial-gradient(circle at top left, rgba(57, 255, 20, 0.22), transparent 30%),
-    radial-gradient(circle at top right, rgba(57, 255, 20, 0.12), transparent 28%),
+    radial-gradient(circle at 15% 0%, rgba(57, 255, 20, 0.2), transparent 30%),
+    radial-gradient(circle at 85% 5%, rgba(57, 255, 20, 0.12), transparent 28%),
     linear-gradient(180deg, #020403 0%, #061109 48%, #020403 100%);
 }
 
@@ -53,10 +55,10 @@ button {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.45;
   background-image:
-    linear-gradient(rgba(57, 255, 20, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(57, 255, 20, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(57, 255, 20, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57, 255, 20, 0.04) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
@@ -128,7 +130,7 @@ h1 span {
   line-height: 1.55;
 }
 
-/* GENERAL PANELS */
+/* PANELS */
 
 .authPanel,
 .topBar,
@@ -248,7 +250,7 @@ select option {
   border: none;
   border-radius: 15px;
   padding: 15px 22px;
-  background: linear-gradient(135deg, var(--green), var(--green-2));
+  background: linear-gradient(135deg, var(--green), var(--green-light));
   color: #001702;
   font-weight: 950;
   text-decoration: none;
@@ -265,6 +267,30 @@ select option {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
+}
+
+.topBar button,
+.contentCardHeader button,
+.contentHistoryHeader button,
+.contentHistoryCard button,
+.historyActions button {
+  border: 1px solid rgba(57, 255, 20, 0.28);
+  border-radius: 999px;
+  padding: 9px 13px;
+  background: rgba(57, 255, 20, 0.08);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 900;
+  transition: 0.18s ease;
+}
+
+.topBar button:hover,
+.contentCardHeader button:hover,
+.contentHistoryHeader button:hover,
+.contentHistoryCard button:hover,
+.historyActions button:hover {
+  background: var(--green);
+  color: #001702;
 }
 
 /* TOP BAR */
@@ -291,28 +317,6 @@ select option {
   margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.topBar button,
-.contentCardHeader button,
-.contentHistoryHeader button,
-.contentHistoryCard button {
-  border: 1px solid rgba(57, 255, 20, 0.28);
-  border-radius: 999px;
-  padding: 9px 13px;
-  background: rgba(57, 255, 20, 0.08);
-  color: var(--green);
-  font-size: 13px;
-  font-weight: 900;
-  transition: 0.18s ease;
-}
-
-.topBar button:hover,
-.contentCardHeader button:hover,
-.contentHistoryHeader button:hover,
-.contentHistoryCard button:hover {
-  background: var(--green);
-  color: #001702;
 }
 
 /* DASHBOARD */
@@ -765,6 +769,12 @@ select option {
   font-size: 13px;
 }
 
+.historyActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .historyScore {
   min-width: 160px;
   text-align: right;
@@ -807,8 +817,15 @@ select option {
   .topBar button,
   .contentMainButton,
   .contentHistoryHeader button,
-  .contentHistoryCard button {
+  .contentHistoryCard button,
+  .historyActions button {
     width: 100%;
+  }
+
+  .historyActions {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .formGrid,
