@@ -47,6 +47,52 @@ type WorkspaceProfileResponse = {
   updated_at: string;
 };
 
+type WorkspacePreviewResponse = {
+  status: string;
+  message: string;
+  completion: {
+    completed_count: number;
+    total_count: number;
+    completion_percent: number;
+    items: Record<string, boolean>;
+  };
+  workspace: {
+    id: number;
+    project_name: string;
+    brand_name: string;
+    default_target_audience: string;
+    default_cta: string;
+    tone: string;
+    visual_style: string;
+    language: string;
+    preferred_words: string[];
+    forbidden_words: string[];
+    notes: string;
+  };
+  agent_preview: {
+    headline: string;
+    copy: string;
+    visual_direction: string;
+    content_rules: string[];
+  };
+};
+
+type WorkspacePreset = {
+  key: string;
+  name: string;
+  description: string;
+  tone: string;
+  visual_style: string;
+  default_cta: string;
+};
+
+type WorkspacePresetsResponse = {
+  status: string;
+  message: string;
+  total: number;
+  presets: WorkspacePreset[];
+};
+
 const DEFAULT_SETTINGS_FORM = {
   default_niche: "beleza",
   default_channel: "tiktok",
@@ -67,7 +113,8 @@ const DEFAULT_WORKSPACE_FORM = {
   language: "pt-BR",
   preferred_words: "estratégia, oferta, resultado, prático",
   forbidden_words: "milagre, dinheiro fácil, garantido",
-  notes: "Gerar campanhas com aparência profissional, direta e sem promessas exageradas.",
+  notes:
+    "Gerar campanhas com aparência profissional, direta e sem promessas exageradas.",
 };
 
 export default function SettingsPanel({
@@ -85,11 +132,23 @@ export default function SettingsPanel({
   const [workspaceData, setWorkspaceData] =
     useState<WorkspaceProfileResponse | null>(null);
 
+  const [workspacePreview, setWorkspacePreview] =
+    useState<WorkspacePreviewResponse | null>(null);
+
+  const [workspacePresets, setWorkspacePresets] = useState<WorkspacePreset[]>(
+    []
+  );
+
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [savingWorkspace, setSavingWorkspace] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  const [loadingPresets, setLoadingPresets] = useState(false);
+  const [applyingPreset, setApplyingPreset] = useState("");
+  const [resettingWorkspace, setResettingWorkspace] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -186,6 +245,27 @@ export default function SettingsPanel({
     );
   }
 
+  function applyWorkspaceDataToScreen(data: WorkspaceProfileResponse) {
+    setWorkspaceData(data);
+
+    setWorkspaceForm({
+      project_name: data.project_name || "AffiliateAI Pro",
+      brand_name: data.brand_name || "",
+      default_target_audience:
+        data.default_target_audience ||
+        "pessoas interessadas em soluções práticas e ofertas úteis",
+      default_cta: data.default_cta || "Clique no link e confira a oferta.",
+      tone: data.tone || "direto",
+      visual_style: data.visual_style || "premium_dark",
+      language: data.language || "pt-BR",
+      preferred_words: wordsToText(data.preferred_words),
+      forbidden_words: wordsToText(data.forbidden_words),
+      notes: data.notes || "",
+    });
+
+    syncWorkspaceToLocalStorage(data);
+  }
+
   const loadSettings = useCallback(async () => {
     setLoadingSettings(true);
     setErrorMessage("");
@@ -195,7 +275,9 @@ export default function SettingsPanel({
         token || localStorage.getItem("affiliateai_token") || "";
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para carregar configurações.");
+        throw new Error(
+          "Você precisa estar logado para carregar configurações."
+        );
       }
 
       const response = await fetch(`${API_URL}/api/user-settings/me`, {
@@ -259,24 +341,7 @@ export default function SettingsPanel({
 
       const data: WorkspaceProfileResponse = await response.json();
 
-      setWorkspaceData(data);
-
-      setWorkspaceForm({
-        project_name: data.project_name || "AffiliateAI Pro",
-        brand_name: data.brand_name || "",
-        default_target_audience:
-          data.default_target_audience ||
-          "pessoas interessadas em soluções práticas e ofertas úteis",
-        default_cta: data.default_cta || "Clique no link e confira a oferta.",
-        tone: data.tone || "direto",
-        visual_style: data.visual_style || "premium_dark",
-        language: data.language || "pt-BR",
-        preferred_words: wordsToText(data.preferred_words),
-        forbidden_words: wordsToText(data.forbidden_words),
-        notes: data.notes || "",
-      });
-
-      syncWorkspaceToLocalStorage(data);
+      applyWorkspaceDataToScreen(data);
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -288,10 +353,80 @@ export default function SettingsPanel({
     }
   }, [token]);
 
+  const loadWorkspacePreview = useCallback(async () => {
+    setLoadingPreview(true);
+    setErrorMessage("");
+
+    try {
+      const currentToken =
+        token || localStorage.getItem("affiliateai_token") || "";
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para carregar a prévia.");
+      }
+
+      const response = await fetch(`${API_URL}/api/workspace-profile/preview`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: WorkspacePreviewResponse = await response.json();
+
+      setWorkspacePreview(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao carregar prévia do Workspace.");
+      }
+    } finally {
+      setLoadingPreview(false);
+    }
+  }, [token]);
+
+  const loadWorkspacePresets = useCallback(async () => {
+    setLoadingPresets(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/workspace-profile/presets`);
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: WorkspacePresetsResponse = await response.json();
+
+      setWorkspacePresets(data.presets || []);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao carregar presets do Workspace.");
+      }
+    } finally {
+      setLoadingPresets(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadSettings();
     loadWorkspace();
-  }, [loadSettings, loadWorkspace]);
+    loadWorkspacePreview();
+    loadWorkspacePresets();
+  }, [
+    loadSettings,
+    loadWorkspace,
+    loadWorkspacePreview,
+    loadWorkspacePresets,
+  ]);
 
   async function saveSettings() {
     setSavingSettings(true);
@@ -389,8 +524,9 @@ export default function SettingsPanel({
 
       const data: WorkspaceProfileResponse = await response.json();
 
-      setWorkspaceData(data);
-      syncWorkspaceToLocalStorage(data);
+      applyWorkspaceDataToScreen(data);
+
+      await loadWorkspacePreview();
 
       setSuccessMessage("Workspace Profile salvo com sucesso.");
 
@@ -406,8 +542,120 @@ export default function SettingsPanel({
     }
   }
 
+  async function applyWorkspacePreset(presetKey: string, presetName: string) {
+    const confirmed = window.confirm(
+      `Aplicar o preset "${presetName}"? Ele vai alterar tom, visual, CTA, público-alvo, palavras e observações. Nome da marca e projeto serão mantidos.`
+    );
+
+    if (!confirmed) return;
+
+    setApplyingPreset(presetKey);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para aplicar um preset.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/workspace-profile/presets/${presetKey}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: WorkspaceProfileResponse = await response.json();
+
+      applyWorkspaceDataToScreen(data);
+
+      await loadWorkspacePreview();
+
+      setSuccessMessage(`Preset "${presetName}" aplicado com sucesso.`);
+
+      window.dispatchEvent(new Event("workspace-profile-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao aplicar preset do Workspace.");
+      }
+    } finally {
+      setApplyingPreset("");
+    }
+  }
+
+  async function resetWorkspaceProfile() {
+    const confirmed = window.confirm(
+      "Resetar o Workspace para o padrão? Isso mantém nome do projeto e nome da marca, mas volta tom, visual, CTA, palavras e observações para o padrão."
+    );
+
+    if (!confirmed) return;
+
+    setResettingWorkspace(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para resetar o Workspace.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/workspace-profile/reset?keep_brand=true`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: WorkspaceProfileResponse = await response.json();
+
+      applyWorkspaceDataToScreen(data);
+
+      await loadWorkspacePreview();
+
+      setSuccessMessage("Workspace resetado para o padrão com sucesso.");
+
+      window.dispatchEvent(new Event("workspace-profile-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao resetar Workspace Profile.");
+      }
+    } finally {
+      setResettingWorkspace(false);
+    }
+  }
+
   async function reloadEverything() {
-    await Promise.all([loadSettings(), loadWorkspace()]);
+    await Promise.all([
+      loadSettings(),
+      loadWorkspace(),
+      loadWorkspacePreview(),
+      loadWorkspacePresets(),
+    ]);
+
     setSuccessMessage("Configurações recarregadas.");
   }
 
@@ -427,8 +675,12 @@ export default function SettingsPanel({
         </div>
 
         <div className="agentHeroStats">
-          <span>Usuário</span>
-          <strong>{userName || "Usuário"}</strong>
+          <span>Personalização</span>
+          <strong>
+            {workspacePreview
+              ? `${workspacePreview.completion.completion_percent}%`
+              : "0%"}
+          </strong>
           <p>{userEmail || "Conta local do AffiliateAI Pro"}</p>
         </div>
       </div>
@@ -574,6 +826,10 @@ export default function SettingsPanel({
               <span>Resumo</span>
               <h3>Status da personalização</h3>
             </div>
+
+            <button onClick={loadWorkspacePreview} disabled={loadingPreview}>
+              {loadingPreview ? "Atualizando..." : "Ver prévia"}
+            </button>
           </div>
 
           <div className="agentResultStats">
@@ -603,8 +859,12 @@ export default function SettingsPanel({
             </div>
 
             <div>
-              <span>CTA</span>
-              <strong>{workspaceForm.default_cta ? "Definido" : "Padrão"}</strong>
+              <span>Completo</span>
+              <strong>
+                {workspacePreview
+                  ? `${workspacePreview.completion.completion_percent}%`
+                  : "--"}
+              </strong>
             </div>
           </div>
 
@@ -617,6 +877,57 @@ export default function SettingsPanel({
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="agentResultCard">
+        <div className="agentResultHeader">
+          <div>
+            <span>Presets de Workspace</span>
+            <h3>Escolha um estilo pronto</h3>
+            <p>
+              Aplique uma personalidade pronta para acelerar a configuração dos
+              agentes. O preset mantém o nome da sua marca e do projeto.
+            </p>
+          </div>
+
+          <button onClick={loadWorkspacePresets} disabled={loadingPresets}>
+            {loadingPresets ? "Carregando..." : "Recarregar presets"}
+          </button>
+        </div>
+
+        {workspacePresets.length === 0 ? (
+          <div className="agentEmptyBox">
+            Nenhum preset carregado ainda. Clique em Recarregar presets.
+          </div>
+        ) : (
+          <div className="agentResultLists">
+            {workspacePresets.map((preset) => (
+              <div key={preset.key}>
+                <h4>{preset.name}</h4>
+
+                <p>{preset.description}</p>
+
+                <ul>
+                  <li>Tom: {preset.tone}</li>
+                  <li>Visual: {preset.visual_style}</li>
+                  <li>CTA: {preset.default_cta}</li>
+                </ul>
+
+                <button
+                  className="primaryButton"
+                  onClick={() =>
+                    applyWorkspacePreset(preset.key, preset.name)
+                  }
+                  disabled={Boolean(applyingPreset)}
+                >
+                  {applyingPreset === preset.key
+                    ? "Aplicando..."
+                    : `Aplicar ${preset.name}`}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="agentResultCard">
@@ -776,6 +1087,17 @@ export default function SettingsPanel({
             {savingWorkspace ? "Salvando..." : "Salvar Workspace Profile"}
           </button>
 
+          <button onClick={loadWorkspacePreview} disabled={loadingPreview}>
+            {loadingPreview ? "Gerando prévia..." : "Gerar prévia"}
+          </button>
+
+          <button
+            onClick={resetWorkspaceProfile}
+            disabled={resettingWorkspace}
+          >
+            {resettingWorkspace ? "Resetando..." : "Resetar Workspace"}
+          </button>
+
           <button onClick={reloadEverything}>Recarregar tudo</button>
         </div>
 
@@ -796,6 +1118,106 @@ Palavras proibidas: ${workspaceForm.forbidden_words || "Nenhuma"}
 Observações: ${workspaceForm.notes || "Nenhuma"}`}</pre>
         </div>
       </div>
+
+      {workspacePreview && (
+        <div className="agentResultCard">
+          <div className="agentResultHeader">
+            <div>
+              <span>Prévia dos agentes</span>
+              <h3>Como o sistema está enxergando sua marca</h3>
+              <p>
+                Essa prévia vem direto do backend e mostra como Autopilot,
+                Product Hunter, Content Generator, Creative Image e Campaign
+                Flow vão usar o Workspace.
+              </p>
+            </div>
+
+            <div className="agentHeroStats">
+              <span>Completo</span>
+              <strong>
+                {workspacePreview.completion.completion_percent}%
+              </strong>
+              <p>
+                {workspacePreview.completion.completed_count}/
+                {workspacePreview.completion.total_count} campos preenchidos
+              </p>
+            </div>
+          </div>
+
+          <div className="agentResultStats">
+            <div>
+              <span>Projeto</span>
+              <strong>{workspacePreview.workspace.project_name}</strong>
+            </div>
+
+            <div>
+              <span>Marca</span>
+              <strong>{workspacePreview.workspace.brand_name}</strong>
+            </div>
+
+            <div>
+              <span>Tom</span>
+              <strong>{workspacePreview.workspace.tone}</strong>
+            </div>
+
+            <div>
+              <span>Visual</span>
+              <strong>{workspacePreview.workspace.visual_style}</strong>
+            </div>
+
+            <div>
+              <span>Idioma</span>
+              <strong>{workspacePreview.workspace.language}</strong>
+            </div>
+
+            <div>
+              <span>CTA</span>
+              <strong>Definido</strong>
+            </div>
+          </div>
+
+          <div className="agentMainText">
+            <span>Headline que os agentes podem usar</span>
+            <pre>{workspacePreview.agent_preview.headline}</pre>
+          </div>
+
+          <div className="agentMainText">
+            <span>Copy base personalizada</span>
+            <pre>{workspacePreview.agent_preview.copy}</pre>
+          </div>
+
+          <div className="agentMainText">
+            <span>Direção visual</span>
+            <pre>{workspacePreview.agent_preview.visual_direction}</pre>
+          </div>
+
+          <div className="agentResultLists">
+            <div>
+              <h4>Regras de conteúdo</h4>
+
+              <ul>
+                {workspacePreview.agent_preview.content_rules.map((rule) => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4>Checklist do perfil</h4>
+
+              <ul>
+                {Object.entries(workspacePreview.completion.items).map(
+                  ([key, value]) => (
+                    <li key={key}>
+                      {value ? "✅" : "⚠️"} {key}
+                    </li>
+                  )
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

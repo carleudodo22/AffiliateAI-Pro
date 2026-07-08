@@ -43,6 +43,24 @@ def update_my_workspace_profile(
     )
 
 
+@router.get("/presets")
+def list_workspace_presets():
+    return service.list_presets()
+
+
+@router.post("/presets/{preset_key}", response_model=WorkspaceProfileResponse)
+def apply_workspace_preset(
+    preset_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.apply_preset(
+        preset_key=preset_key,
+        db=db,
+        current_user=current_user,
+    )
+
+
 @router.get("/preview")
 def preview_my_workspace_profile(
     db: Session = Depends(get_db),
