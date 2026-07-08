@@ -6,6 +6,7 @@ from app.api.ai import router as ai_router
 from app.api.affiliate_products import router as affiliate_products_router
 from app.api.auth import router as auth_router
 from app.api.autopilot import router as autopilot_router
+from app.api.campaign_flow import router as campaign_flow_router
 from app.api.campaign_package import router as campaign_package_router
 from app.api.content_generator import router as content_generator_router
 from app.api.creative_image import router as creative_image_router
@@ -95,4 +96,5 @@ app.include_router(creative_image_router)
 app.include_router(autopilot_router)
 app.include_router(user_settings_router)
 app.include_router(campaign_package_router)
+app.include_router(campaign_flow_router)
 app.include_router(dashboard_router)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -9,151 +9,192 @@ type CampaignPackagePanelProps = {
   token: string;
 };
 
-type AnyData = Record<string, any>;
+type CampaignPackageHistoryItem = {
+  id: number;
+  product_name: string;
+  niche: string;
+  marketplace: string;
+  score: string;
+  decision: string;
+  status: string;
+  created_at: string;
+};
 
-export default function CampaignPackagePanel({ token }: CampaignPackagePanelProps) {
-  const [autopilot, setAutopilot] = useState<AnyData | null>(null);
-  const [productHunter, setProductHunter] = useState<AnyData | null>(null);
-  const [contentGenerator, setContentGenerator] = useState<AnyData | null>(null);
-  const [creativeImage, setCreativeImage] = useState<AnyData | null>(null);
+type CampaignPackageDetail = {
+  id: number;
+  user_id: number;
+  product_name: string;
+  niche: string;
+  marketplace: string;
+  score: string;
+  decision: string;
+  package_text: string;
+  source_data: Record<string, unknown>;
+  status: string;
+  created_at: string;
+};
 
-  const [savedPackages, setSavedPackages] = useState<AnyData[]>([]);
-  const [savedPackagePreview, setSavedPackagePreview] = useState<AnyData | null>(
+type CampaignFlowResponse = {
+  status: string;
+  message: string;
+  saved_package_id: number;
+  product: {
+    id: number | null;
+    product_name: string;
+    niche: string;
+    marketplace: string;
+    average_price: number;
+    commission_percent: number;
+    product_url: string | null;
+    affiliate_link: string | null;
+    source: string;
+  };
+  score: string;
+  decision: string;
+  headline: string;
+  short_copy: string;
+  video_script: string;
+  image_brief: string;
+  voiceover_script: string;
+  package_text: string;
+  source_data: Record<string, unknown>;
+  created_at: string;
+};
+
+const DEFAULT_FORM = {
+  niche: "beleza",
+  target_audience: "",
+  objective: "vender",
+  main_channel: "tiktok",
+  budget_style: "organico",
+  campaign_style: "viral",
+  use_auto_pick: true,
+  product_id: "",
+};
+
+export default function CampaignPackagePanel({
+  token,
+}: CampaignPackagePanelProps) {
+  const [form, setForm] = useState(DEFAULT_FORM);
+
+  const [history, setHistory] = useState<CampaignPackageHistoryItem[]>([]);
+  const [selectedPackage, setSelectedPackage] =
+    useState<CampaignPackageDetail | null>(null);
+
+  const [flowResult, setFlowResult] = useState<CampaignFlowResponse | null>(
     null
   );
 
-  const [loading, setLoading] = useState(false);
-  const [loadingSavedPackages, setLoadingSavedPackages] = useState(false);
-  const [savingPackage, setSavingPackage] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [generatingFlow, setGeneratingFlow] = useState(false);
+  const [openingId, setOpeningId] = useState<number | null>(null);
 
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
-
-  useEffect(() => {
-    loadPackage();
-    loadSavedPackages();
-  }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  async function fetchLatestDetail(
-    historyEndpoint: string,
-    detailEndpoint: string
+  function updateForm(
+    key: keyof typeof DEFAULT_FORM,
+    value: string | boolean
   ) {
-    const currentToken = getToken();
+    setForm((currentForm) => ({
+      ...currentForm,
+      [key]: value,
+    }));
 
-    const historyResponse = await fetch(`${API_URL}${historyEndpoint}`, {
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-      },
-    });
-
-    if (!historyResponse.ok) {
-      return null;
-    }
-
-    const historyData = await historyResponse.json();
-
-    if (!Array.isArray(historyData) || historyData.length === 0) {
-      return null;
-    }
-
-    const latestItem = historyData[0];
-    const id = latestItem.id ?? latestItem.analysis_id ?? latestItem.creative_id;
-
-    if (!id) {
-      return latestItem;
-    }
-
-    const detailResponse = await fetch(`${API_URL}${detailEndpoint}/${id}`, {
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-      },
-    });
-
-    if (!detailResponse.ok) {
-      return latestItem;
-    }
-
-    return await detailResponse.json();
-  }
-
-  async function loadPackage() {
-    setLoading(true);
     setErrorMessage("");
+    setSuccessMessage("");
     setCopyMessage("");
-    setSavedPackagePreview(null);
+  }
+
+  function formatDate(value?: string | null) {
+    if (!value) return "Sem data";
 
     try {
-      const currentToken = getToken();
-
-      if (!currentToken) {
-        throw new Error("Você precisa estar logado para montar o pacote.");
-      }
-
-      const [
-        autopilotResult,
-        productHunterResult,
-        contentGeneratorResult,
-        creativeImageResult,
-      ] = await Promise.allSettled([
-        fetchLatestDetail("/api/autopilot/history", "/api/autopilot"),
-        fetchLatestDetail("/api/product-hunter/history", "/api/product-hunter"),
-        fetchLatestDetail(
-          "/api/content-generator/history",
-          "/api/content-generator"
-        ),
-        fetchLatestDetail("/api/creative-image/history", "/api/creative-image"),
-      ]);
-
-      setAutopilot(
-        autopilotResult.status === "fulfilled" ? autopilotResult.value : null
-      );
-
-      setProductHunter(
-        productHunterResult.status === "fulfilled"
-          ? productHunterResult.value
-          : null
-      );
-
-      setContentGenerator(
-        contentGeneratorResult.status === "fulfilled"
-          ? contentGeneratorResult.value
-          : null
-      );
-
-      setCreativeImage(
-        creativeImageResult.status === "fulfilled"
-          ? creativeImageResult.value
-          : null
-      );
-    } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("Erro ao montar pacote de campanha.");
-      }
-
-      setAutopilot(null);
-      setProductHunter(null);
-      setContentGenerator(null);
-      setCreativeImage(null);
-    } finally {
-      setLoading(false);
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return value;
     }
   }
 
-  async function loadSavedPackages() {
-    setLoadingSavedPackages(true);
+  function formatMarketplace(value: string) {
+    const labels: Record<string, string> = {
+      shopee: "Shopee",
+      mercado_livre: "Mercado Livre",
+      amazon: "Amazon",
+      hotmart: "Hotmart",
+      kiwify: "Kiwify",
+      monetizze: "Monetizze",
+      generic: "Genérico",
+      outro: "Outro",
+    };
+
+    return labels[value] || value;
+  }
+
+  function formatChannel(value: string) {
+    const labels: Record<string, string> = {
+      tiktok: "TikTok",
+      instagram: "Instagram",
+      youtube_shorts: "YouTube Shorts",
+      google: "Google",
+      facebook_ads: "Facebook Ads",
+      whatsapp: "WhatsApp",
+      pinterest: "Pinterest",
+    };
+
+    return labels[value] || value;
+  }
+
+  function formatBudget(value: string) {
+    const labels: Record<string, string> = {
+      organico: "Orgânico",
+      baixo_orcamento: "Baixo orçamento",
+      trafego_pago: "Tráfego pago",
+    };
+
+    return labels[value] || value;
+  }
+
+  function formatStyle(value: string) {
+    const labels: Record<string, string> = {
+      viral: "Viral",
+      direto: "Direto",
+      premium: "Premium",
+      popular: "Popular",
+      emocional: "Emocional",
+      agressivo: "Agressivo",
+      minimalista: "Minimalista",
+    };
+
+    return labels[value] || value;
+  }
+
+  function formatObjective(value: string) {
+    const labels: Record<string, string> = {
+      vender: "Vender",
+      validar_produto: "Validar produto",
+      aquecer_audiencia: "Aquecer audiência",
+      capturar_lead: "Capturar lead",
+    };
+
+    return labels[value] || value;
+  }
+
+  const loadHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    setErrorMessage("");
 
     try {
-      const currentToken = getToken();
+      const currentToken =
+        token || localStorage.getItem("affiliateai_token") || "";
 
       if (!currentToken) {
-        setSavedPackages([]);
-        return;
+        throw new Error("Você precisa estar logado para carregar o histórico.");
       }
 
       const response = await fetch(`${API_URL}/api/campaign-package/history`, {
@@ -163,34 +204,126 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
       });
 
       if (!response.ok) {
-        setSavedPackages([]);
-        return;
+        const text = await response.text();
+        throw new Error(text);
       }
 
-      const data = await response.json();
+      const data: CampaignPackageHistoryItem[] = await response.json();
 
-      if (Array.isArray(data)) {
-        setSavedPackages(data);
+      setHistory(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
       } else {
-        setSavedPackages([]);
+        setErrorMessage("Erro ao carregar histórico de pacotes.");
       }
-    } catch {
-      setSavedPackages([]);
-    } finally {
-      setLoadingSavedPackages(false);
-    }
-  }
 
-  async function openSavedPackage(packageId: number) {
-    setLoading(true);
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadHistory();
+
+    window.addEventListener("campaign-package-history-updated", loadHistory);
+
+    return () => {
+      window.removeEventListener(
+        "campaign-package-history-updated",
+        loadHistory
+      );
+    };
+  }, [loadHistory]);
+
+  async function runCampaignFlow() {
+    setGeneratingFlow(true);
     setErrorMessage("");
+    setSuccessMessage("");
     setCopyMessage("");
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado.");
+        throw new Error("Você precisa estar logado para gerar o Campaign Flow.");
+      }
+
+      const payload = {
+        niche: form.niche || null,
+        target_audience: form.target_audience || null,
+        objective: form.objective,
+        main_channel: form.main_channel,
+        budget_style: form.budget_style,
+        campaign_style: form.campaign_style,
+        use_auto_pick: Boolean(form.use_auto_pick),
+        product_id: form.product_id ? Number(form.product_id) : null,
+      };
+
+      const response = await fetch(`${API_URL}/api/campaign-flow/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: CampaignFlowResponse = await response.json();
+
+      setFlowResult(data);
+
+      const packageDetail: CampaignPackageDetail = {
+        id: data.saved_package_id,
+        user_id: 0,
+        product_name: data.product.product_name,
+        niche: data.product.niche,
+        marketplace: data.product.marketplace,
+        score: data.score,
+        decision: data.decision,
+        package_text: data.package_text,
+        source_data: data.source_data,
+        status: "saved",
+        created_at: data.created_at,
+      };
+
+      setSelectedPackage(packageDetail);
+
+      setSuccessMessage(
+        `Campaign Flow gerado e salvo com sucesso. Pacote #${data.saved_package_id}.`
+      );
+
+      await loadHistory();
+
+      window.dispatchEvent(new Event("campaign-package-history-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao gerar Campaign Flow.");
+      }
+    } finally {
+      setGeneratingFlow(false);
+    }
+  }
+
+  async function openPackage(packageId: number) {
+    setOpeningId(packageId);
+    setErrorMessage("");
+    setSuccessMessage("");
+    setCopyMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para abrir o pacote.");
       }
 
       const response = await fetch(
@@ -207,800 +340,433 @@ export default function CampaignPackagePanel({ token }: CampaignPackagePanelProp
         throw new Error(text);
       }
 
-      const data = await response.json();
+      const data: CampaignPackageDetail = await response.json();
 
-      setSavedPackagePreview(data);
-      setCopyMessage("Pacote salvo carregado com sucesso.");
+      setSelectedPackage(data);
+      setFlowResult(null);
+      setSuccessMessage("Pacote carregado com sucesso.");
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao abrir pacote salvo.");
+        setErrorMessage("Erro ao abrir pacote.");
       }
     } finally {
-      setLoading(false);
+      setOpeningId(null);
     }
   }
 
-  function copyText(text: string, message = "Copiado com sucesso.") {
-    navigator.clipboard.writeText(text);
-    setCopyMessage(message);
-  }
-
-  function getValue(data: AnyData | null, keys: string[], fallback = "") {
-    if (!data) return fallback;
-
-    for (const key of keys) {
-      const value = key.split(".").reduce<any>((acc, part) => {
-        if (!acc) return undefined;
-        return acc[part];
-      }, data);
-
-      if (value) return String(value);
-    }
-
-    return fallback;
-  }
-
-  function getList(data: AnyData | null, keys: string[], fallback: string[] = []) {
-    if (!data) return fallback;
-
-    for (const key of keys) {
-      const value = key.split(".").reduce<any>((acc, part) => {
-        if (!acc) return undefined;
-        return acc[part];
-      }, data);
-
-      if (Array.isArray(value)) {
-        return value.map(String);
-      }
-    }
-
-    return fallback;
-  }
-
-  function getPackageProductName() {
-    return (
-      getValue(autopilot, ["selected_product"]) ||
-      getValue(contentGenerator, ["product_name"]) ||
-      getValue(creativeImage, ["product_name"]) ||
-      getValue(productHunter, ["product_name", "product.name", "name"]) ||
-      "Produto ainda não definido"
-    );
-  }
-
-  function getPackageNiche() {
-    return (
-      getValue(autopilot, ["niche"]) ||
-      getValue(contentGenerator, ["niche"]) ||
-      getValue(creativeImage, ["niche"]) ||
-      getValue(productHunter, ["niche", "category"]) ||
-      "Nicho ainda não definido"
-    );
-  }
-
-  function getPackageMarketplace() {
-    return (
-      getValue(autopilot, ["marketplace"]) ||
-      getValue(productHunter, ["marketplace"]) ||
-      "Marketplace não definido"
-    );
-  }
-
-  function getPackageScore() {
-    return (
-      getValue(autopilot, ["score"]) ||
-      getValue(productHunter, [
-        "score.final_score",
-        "final_score",
-        "score",
-        "analysis.score.final_score",
-      ]) ||
-      "--"
-    );
-  }
-
-  function getPackageDecision() {
-    return (
-      getValue(autopilot, ["decision"]) ||
-      getValue(productHunter, ["decision", "analysis.decision"]) ||
-      "Decisão ainda não definida"
-    );
-  }
-
-  const packageText = useMemo(() => {
-    const productName = getPackageProductName();
-    const niche = getPackageNiche();
-    const marketplace = getPackageMarketplace();
-    const score = getPackageScore();
-    const decision = getPackageDecision();
-
-    const strategy = getValue(autopilot, ["strategy"], "Estratégia não gerada.");
-
-    const headline =
-      getValue(contentGenerator, ["headline"]) ||
-      getValue(autopilot, ["headline"]) ||
-      "Headline não gerada.";
-
-    const shortCopy =
-      getValue(contentGenerator, ["short_copy"]) ||
-      getValue(autopilot, ["short_copy"]) ||
-      "Copy curta não gerada.";
-
-    const caption = getValue(
-      contentGenerator,
-      ["caption"],
-      "Legenda não gerada."
-    );
-
-    const videoScript =
-      getValue(contentGenerator, ["video_script"]) ||
-      getValue(autopilot, ["video_script"]) ||
-      "Roteiro não gerado.";
-
-    const whatsappText = getValue(
-      contentGenerator,
-      ["whatsapp_text"],
-      "Texto para WhatsApp não gerado."
-    );
-
-    const cta =
-      getValue(contentGenerator, ["cta"]) ||
-      getValue(creativeImage, ["cta"]) ||
-      "CTA não gerado.";
-
-    const hashtags = getList(contentGenerator, ["hashtags"]).join(" ");
-
-    const artHeadline = getValue(
-      creativeImage,
-      ["art_headline"],
-      "Título da arte não gerado."
-    );
-
-    const artSubtitle = getValue(
-      creativeImage,
-      ["art_subtitle"],
-      "Subtítulo da arte não gerado."
-    );
-
-    const visualBrief = getValue(
-      creativeImage,
-      ["visual_brief"],
-      "Briefing visual não gerado."
-    );
-
-    const imagePrompt = getValue(
-      creativeImage,
-      ["image_prompt"],
-      "Prompt de imagem não gerado."
-    );
-
-    const negativePrompt = getValue(
-      creativeImage,
-      ["negative_prompt"],
-      "Negative prompt não gerado."
-    );
-
-    const checklist = [
-      ...getList(autopilot, ["checklist"]),
-      ...getList(creativeImage, ["checklist"]),
-    ];
-
-    return `PACOTE DE CAMPANHA - AFFILIATEAI PRO
-
-PRODUTO:
-${productName}
-
-NICHO:
-${niche}
-
-MARKETPLACE:
-${marketplace}
-
-SCORE:
-${score}/100
-
-DECISÃO:
-${decision}
-
-ESTRATÉGIA:
-${strategy}
-
-HEADLINE:
-${headline}
-
-COPY CURTA:
-${shortCopy}
-
-LEGENDA:
-${caption}
-
-ROTEIRO DE VÍDEO:
-${videoScript}
-
-TEXTO PARA WHATSAPP:
-${whatsappText}
-
-CTA:
-${cta}
-
-HASHTAGS:
-${hashtags || "Hashtags não geradas."}
-
-TEXTO DA ARTE:
-Título: ${artHeadline}
-Subtítulo: ${artSubtitle}
-CTA visual: ${getValue(creativeImage, ["cta"], cta)}
-
-BRIEFING VISUAL:
-${visualBrief}
-
-PROMPT DE IMAGEM:
-${imagePrompt}
-
-NEGATIVE PROMPT:
-${negativePrompt}
-
-CHECKLIST:
-${
-  checklist.length > 0
-    ? checklist.map((item, index) => `${index + 1}. ${item}`).join("\n")
-    : "Checklist não gerado."
-}
-
-GERADO PELO:
-AffiliateAI Pro - MVP Local`;
-  }, [autopilot, productHunter, contentGenerator, creativeImage]);
-
-  const hasAnyData = autopilot || productHunter || contentGenerator || creativeImage;
-
-  const activePackageText =
-    savedPackagePreview?.package_text && typeof savedPackagePreview.package_text === "string"
-      ? savedPackagePreview.package_text
-      : packageText;
-
-  const hasExportableData = Boolean(savedPackagePreview) || Boolean(hasAnyData);
-
-  async function savePackageToDatabase() {
-    setSavingPackage(true);
-    setErrorMessage("");
-    setCopyMessage("");
+  async function copyPackageText() {
+    if (!selectedPackage) return;
 
     try {
-      const currentToken = getToken();
-
-      if (!currentToken) {
-        throw new Error("Você precisa estar logado para salvar o pacote.");
-      }
-
-      if (!hasAnyData) {
-        throw new Error("Monte uma campanha antes de salvar no banco.");
-      }
-
-      const response = await fetch(`${API_URL}/api/campaign-package/save`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentToken}`,
-        },
-        body: JSON.stringify({
-          product_name: getPackageProductName(),
-          niche: getPackageNiche(),
-          marketplace: getPackageMarketplace(),
-          score: String(getPackageScore()),
-          decision: getPackageDecision(),
-          package_text: packageText,
-          source_data: {
-            autopilot,
-            product_hunter: productHunter,
-            content_generator: contentGenerator,
-            creative_image: creativeImage,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text);
-      }
-
-      const data = await response.json();
-
-      setSavedPackagePreview(data);
-      setCopyMessage(`Pacote salvo no banco com sucesso. ID #${data.id}`);
-
-      await loadSavedPackages();
-
-      window.dispatchEvent(new Event("campaign-package-history-updated"));
-    } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("Erro ao salvar pacote no banco.");
-      }
-    } finally {
-      setSavingPackage(false);
+      await navigator.clipboard.writeText(selectedPackage.package_text);
+      setCopyMessage("Pacote copiado.");
+    } catch {
+      setCopyMessage("Não foi possível copiar.");
     }
   }
 
-  function getCleanProductName() {
-    const productName =
-      savedPackagePreview?.product_name ||
-      getValue(autopilot, ["selected_product"]) ||
-      getValue(contentGenerator, ["product_name"]) ||
-      getValue(creativeImage, ["product_name"]) ||
-      "campanha";
+  function exportTxt() {
+    if (!selectedPackage) return;
 
-    return String(productName)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  }
+    const fileName = `affiliateai-campaign-package-${selectedPackage.id}.txt`;
 
-  function getExportFileName(extension: "txt" | "pdf") {
-    const cleanProductName = getCleanProductName();
-    const date = new Date().toISOString().slice(0, 10);
-
-    return `affiliateai-${cleanProductName || "campanha"}-${date}.${extension}`;
-  }
-
-  function exportTxtFile() {
-    if (!hasExportableData) {
-      setErrorMessage("Gere, carregue ou abra uma campanha antes de exportar.");
-      return;
-    }
-
-    const blob = new Blob([activePackageText], {
+    const blob = new Blob([selectedPackage.package_text], {
       type: "text/plain;charset=utf-8",
     });
 
-    const downloadUrl = URL.createObjectURL(blob);
-    const downloadLink = document.createElement("a");
+    const url = URL.createObjectURL(blob);
 
-    downloadLink.href = downloadUrl;
-    downloadLink.download = getExportFileName("txt");
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
 
-    URL.revokeObjectURL(downloadUrl);
+    URL.revokeObjectURL(url);
 
-    setCopyMessage("Campanha exportada em .TXT com sucesso.");
+    setSuccessMessage("Arquivo TXT exportado.");
   }
 
-  function exportPdfFile() {
-    if (!hasExportableData) {
-      setErrorMessage("Gere, carregue ou abra uma campanha antes de exportar.");
-      return;
-    }
+  function exportPdf() {
+    if (!selectedPackage) return;
 
     const doc = new jsPDF({
-      orientation: "p",
+      orientation: "portrait",
       unit: "mm",
       format: "a4",
     });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+    const title = "AffiliateAI Pro - Campaign Package";
+    const subtitle = `${selectedPackage.product_name} • ${selectedPackage.decision}`;
 
-    const marginX = 14;
-    const marginTop = 18;
-    const marginBottom = 16;
-    const usableWidth = pageWidth - marginX * 2;
-
-    let y = marginTop;
-
-    function addFooter(pageNumber: number) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 120);
-      doc.text(
-        `AffiliateAI Pro - Página ${pageNumber}`,
-        marginX,
-        pageHeight - 8
-      );
-    }
-
-    function addNewPage() {
-      addFooter(doc.getNumberOfPages());
-      doc.addPage();
-      y = marginTop;
-    }
-
-    doc.setFillColor(8, 14, 12);
-    doc.rect(0, 0, pageWidth, 34, "F");
-
-    doc.setTextColor(0, 255, 136);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("AffiliateAI Pro", marginX, 16);
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(11);
-    doc.text("Pacote Completo de Campanha", marginX, 24);
-
-    y = 45;
-
-    doc.setTextColor(20, 20, 20);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("Campanha exportada", marginX, y);
-
-    y += 8;
+    doc.setFontSize(16);
+    doc.text(title, 14, 18);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, marginX, y);
+    doc.text(subtitle, 14, 26);
 
-    y += 12;
+    doc.setDrawColor(0, 180, 100);
+    doc.line(14, 31, 196, 31);
 
-    const sections = activePackageText.split("\n\n");
+    const lines = doc.splitTextToSize(selectedPackage.package_text, 182);
 
-    sections.forEach((section) => {
-      const lines = section.split("\n");
-      const title = lines[0] || "";
-      const body = lines.slice(1).join("\n");
+    let y = 40;
 
-      if (y > pageHeight - marginBottom - 24) {
-        addNewPage();
+    doc.setFontSize(9);
+
+    lines.forEach((line: string) => {
+      if (y > 285) {
+        doc.addPage();
+        y = 18;
       }
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 120, 70);
-
-      const titleLines = doc.splitTextToSize(title, usableWidth);
-
-      titleLines.forEach((line: string) => {
-        if (y > pageHeight - marginBottom) {
-          addNewPage();
-        }
-
-        doc.text(line, marginX, y);
-        y += 6;
-      });
-
-      if (body.trim()) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9.5);
-        doc.setTextColor(35, 35, 35);
-
-        const bodyLines = doc.splitTextToSize(body, usableWidth);
-
-        bodyLines.forEach((line: string) => {
-          if (y > pageHeight - marginBottom) {
-            addNewPage();
-          }
-
-          doc.text(line, marginX, y);
-          y += 5;
-        });
-      }
-
+      doc.text(line, 14, y);
       y += 5;
     });
 
-    addFooter(doc.getNumberOfPages());
+    doc.save(`affiliateai-campaign-package-${selectedPackage.id}.pdf`);
 
-    doc.save(getExportFileName("pdf"));
-
-    setCopyMessage("Campanha exportada em PDF com sucesso.");
+    setSuccessMessage("PDF exportado.");
   }
 
-  function formatDate(value?: string) {
-    if (!value) return "Data não encontrada";
+  const selectedSource = useMemo(() => {
+    if (!selectedPackage?.source_data) return "";
 
-    try {
-      return new Date(value).toLocaleString("pt-BR");
-    } catch {
-      return value;
-    }
-  }
+    const flow = selectedPackage.source_data["flow"];
+
+    if (!flow || typeof flow !== "object") return "";
+
+    const flowData = flow as Record<string, unknown>;
+
+    return String(flowData.name || "");
+  }, [selectedPackage]);
 
   return (
-    <section className="packagePanel">
-      <div className="packageHeader">
+    <section className="agentPanel campaignPackagePanel">
+      <div className="agentHero">
         <div>
-          <span className="packageEyebrow">Campaign Package</span>
+          <span className="agentEyebrow">Campaign Package</span>
 
-          <h2>Pacote Completo de Campanha</h2>
+          <h2>Pacote de Campanha</h2>
 
           <p>
-            Junte automaticamente a última campanha, análise, conteúdo e criativo
-            visual em uma entrega única pronta para copiar, postar, exportar ou
-            salvar no banco.
+            Gere um pacote completo com produto, análise, copy, roteiro,
+            briefing visual, narração e checklist. Agora com Campaign Flow em
+            um clique.
           </p>
         </div>
 
-        <div className="packageStatus">
-          <span>Status</span>
-          <strong>{loading ? "Montando" : "Pronto"}</strong>
+        <div className="agentHeroStats">
+          <span>Pacotes salvos</span>
+          <strong>{history.length}</strong>
           <p>
-            {savedPackagePreview
-              ? "Pacote salvo carregado do banco."
-              : "Usando os últimos dados salvos no histórico."}
+            {loadingHistory
+              ? "Atualizando histórico..."
+              : "pacotes no histórico"}
           </p>
         </div>
       </div>
 
-      <div className="packageActions">
-        <button onClick={loadPackage} disabled={loading}>
-          {loading ? "Atualizando..." : "Atualizar pacote"}
-        </button>
-
-        <button
-          className="primaryButton"
-          onClick={() =>
-            copyText(activePackageText, "Campanha completa copiada.")
-          }
-          disabled={!hasExportableData}
-        >
-          Copiar campanha completa
-        </button>
-
-        <button
-          onClick={savePackageToDatabase}
-          disabled={!hasAnyData || savingPackage}
-        >
-          {savingPackage ? "Salvando..." : "Salvar no banco"}
-        </button>
-
-        <button onClick={exportTxtFile} disabled={!hasExportableData}>
-          Exportar .TXT
-        </button>
-
-        <button onClick={exportPdfFile} disabled={!hasExportableData}>
-          Exportar PDF
-        </button>
-      </div>
-
-      {errorMessage && <p className="errorMessage">{errorMessage}</p>}
-      {copyMessage && <p className="successMessage">{copyMessage}</p>}
-
-      {!hasAnyData && !loading && !savedPackagePreview && (
-        <div className="packageEmpty">
-          Gere pelo menos uma campanha no Autopilot, um conteúdo no Content
-          Generator e um criativo no Creative Image para montar o pacote completo.
-        </div>
-      )}
-
-      {hasAnyData && (
-        <>
-          <div className="packageMetrics">
-            <div className={autopilot ? "active" : ""}>
-              <span>Autopilot</span>
-              <strong>{autopilot ? "Conectado" : "Vazio"}</strong>
+      <div className="agentWorkspace">
+        <div className="agentFormCard">
+          <div className="agentSectionHeader">
+            <div>
+              <span>Campaign Flow</span>
+              <h3>Gerar campanha rápida</h3>
             </div>
 
-            <div className={productHunter ? "active" : ""}>
-              <span>Product Hunter</span>
-              <strong>{productHunter ? "Conectado" : "Vazio"}</strong>
-            </div>
-
-            <div className={contentGenerator ? "active" : ""}>
-              <span>Content Generator</span>
-              <strong>{contentGenerator ? "Conectado" : "Vazio"}</strong>
-            </div>
-
-            <div className={creativeImage ? "active" : ""}>
-              <span>Creative Image</span>
-              <strong>{creativeImage ? "Conectado" : "Vazio"}</strong>
-            </div>
+            <button onClick={loadHistory} disabled={loadingHistory}>
+              {loadingHistory ? "Atualizando..." : "Atualizar histórico"}
+            </button>
           </div>
 
-          <div className="packageGrid">
-            <div className="packageCard highlight">
-              <h3>Resumo da campanha</h3>
+          <div className="agentFormGrid">
+            <label>
+              Nicho
+              <input
+                value={form.niche}
+                onChange={(event) => updateForm("niche", event.target.value)}
+                placeholder="Ex: beleza, tecnologia, casa..."
+              />
+            </label>
 
-              <p>
-                <strong>Produto:</strong> {getPackageProductName()}
-              </p>
+            <label>
+              Público-alvo
+              <input
+                value={form.target_audience}
+                onChange={(event) =>
+                  updateForm("target_audience", event.target.value)
+                }
+                placeholder="Ex: pessoas que buscam praticidade"
+              />
+            </label>
 
-              <p>
-                <strong>Nicho:</strong> {getPackageNiche()}
-              </p>
-
-              <p>
-                <strong>Score:</strong> {getPackageScore()}/100
-              </p>
-
-              <p>
-                <strong>Decisão:</strong> {getPackageDecision()}
-              </p>
-            </div>
-
-            <div className="packageCard">
-              <h3>Estratégia</h3>
-              <p>{getValue(autopilot, ["strategy"], "Estratégia não gerada.")}</p>
-
-              <button
-                onClick={() =>
-                  copyText(
-                    getValue(autopilot, ["strategy"], "Estratégia não gerada."),
-                    "Estratégia copiada."
-                  )
+            <label>
+              Objetivo
+              <select
+                value={form.objective}
+                onChange={(event) =>
+                  updateForm("objective", event.target.value)
                 }
               >
-                Copiar
-              </button>
-            </div>
+                <option value="vender">Vender</option>
+                <option value="validar_produto">Validar produto</option>
+                <option value="aquecer_audiencia">Aquecer audiência</option>
+                <option value="capturar_lead">Capturar lead</option>
+              </select>
+            </label>
 
-            <div className="packageCard">
-              <h3>Copy principal</h3>
-              <p>
-                {getValue(contentGenerator, ["short_copy"]) ||
-                  getValue(autopilot, ["short_copy"]) ||
-                  "Copy não gerada."}
-              </p>
-
-              <button
-                onClick={() =>
-                  copyText(
-                    getValue(contentGenerator, ["short_copy"]) ||
-                      getValue(autopilot, ["short_copy"]) ||
-                      "Copy não gerada.",
-                    "Copy copiada."
-                  )
+            <label>
+              Canal principal
+              <select
+                value={form.main_channel}
+                onChange={(event) =>
+                  updateForm("main_channel", event.target.value)
                 }
               >
-                Copiar
-              </button>
-            </div>
+                <option value="tiktok">TikTok</option>
+                <option value="instagram">Instagram</option>
+                <option value="youtube_shorts">YouTube Shorts</option>
+                <option value="google">Google</option>
+                <option value="facebook_ads">Facebook Ads</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="pinterest">Pinterest</option>
+              </select>
+            </label>
 
-            <div className="packageCard">
-              <h3>Roteiro de vídeo</h3>
-              <p>
-                {getValue(contentGenerator, ["video_script"]) ||
-                  getValue(autopilot, ["video_script"]) ||
-                  "Roteiro não gerado."}
-              </p>
-
-              <button
-                onClick={() =>
-                  copyText(
-                    getValue(contentGenerator, ["video_script"]) ||
-                      getValue(autopilot, ["video_script"]) ||
-                      "Roteiro não gerado.",
-                    "Roteiro copiado."
-                  )
+            <label>
+              Orçamento
+              <select
+                value={form.budget_style}
+                onChange={(event) =>
+                  updateForm("budget_style", event.target.value)
                 }
               >
-                Copiar
-              </button>
-            </div>
+                <option value="organico">Orgânico</option>
+                <option value="baixo_orcamento">Baixo orçamento</option>
+                <option value="trafego_pago">Tráfego pago</option>
+              </select>
+            </label>
 
-            <div className="packageCard">
-              <h3>Prompt visual</h3>
-              <p>
-                {getValue(
-                  creativeImage,
-                  ["image_prompt"],
-                  "Prompt de imagem não gerado."
-                )}
-              </p>
-
-              <button
-                onClick={() =>
-                  copyText(
-                    getValue(
-                      creativeImage,
-                      ["image_prompt"],
-                      "Prompt de imagem não gerado."
-                    ),
-                    "Prompt visual copiado."
-                  )
+            <label>
+              Estilo
+              <select
+                value={form.campaign_style}
+                onChange={(event) =>
+                  updateForm("campaign_style", event.target.value)
                 }
               >
-                Copiar
-              </button>
-            </div>
+                <option value="viral">Viral</option>
+                <option value="direto">Direto</option>
+                <option value="premium">Premium</option>
+                <option value="popular">Popular</option>
+                <option value="emocional">Emocional</option>
+                <option value="agressivo">Agressivo</option>
+              </select>
+            </label>
 
-            <div className="packageCard">
-              <h3>Texto da arte</h3>
+            <label>
+              ID do produto específico
+              <input
+                value={form.product_id}
+                onChange={(event) =>
+                  updateForm("product_id", event.target.value)
+                }
+                placeholder="Opcional. Ex: 3"
+              />
+            </label>
 
-              <p>
-                <strong>Título:</strong>{" "}
-                {getValue(creativeImage, ["art_headline"], "Não gerado.")}
-              </p>
-
-              <p>
-                <strong>Subtítulo:</strong>{" "}
-                {getValue(creativeImage, ["art_subtitle"], "Não gerado.")}
-              </p>
-
-              <p>
-                <strong>CTA:</strong>{" "}
-                {getValue(creativeImage, ["cta"], "Não gerado.")}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {hasExportableData && (
-        <div className="packageFinalBox">
-          <div>
-            <span>
-              {savedPackagePreview ? "Pacote salvo aberto" : "Entrega final"}
-            </span>
-
-            <h3>Campanha completa pronta para copiar ou exportar</h3>
-
-            <p>
-              Esse bloco junta todos os agentes em uma única entrega. Você pode
-              copiar, baixar como .TXT, baixar como PDF ou salvar o pacote no
-              banco.
-            </p>
+            <label>
+              Usar Auto Pick
+              <select
+                value={form.use_auto_pick ? "true" : "false"}
+                onChange={(event) =>
+                  updateForm("use_auto_pick", event.target.value === "true")
+                }
+              >
+                <option value="true">Sim, escolher do catálogo</option>
+                <option value="false">Não, usar fallback</option>
+              </select>
+            </label>
           </div>
 
-          <textarea readOnly value={activePackageText} />
-
-          <div className="packageActions">
+          <div className="agentActions">
             <button
               className="primaryButton"
-              onClick={() =>
-                copyText(activePackageText, "Campanha completa copiada.")
-              }
+              onClick={runCampaignFlow}
+              disabled={generatingFlow}
             >
-              Copiar tudo
+              {generatingFlow ? "Gerando pacote..." : "Gerar Campaign Flow"}
             </button>
 
-            <button onClick={exportTxtFile}>Baixar .TXT</button>
-
-            <button onClick={exportPdfFile}>Baixar PDF</button>
+            <button onClick={loadHistory} disabled={loadingHistory}>
+              {loadingHistory ? "Atualizando..." : "Atualizar histórico"}
+            </button>
           </div>
-        </div>
-      )}
 
-      <div className="packageSavedHistory">
-        <div className="packageSavedHistoryHeader">
-          <div>
-            <span>Banco de dados</span>
-            <h3>Histórico de pacotes salvos</h3>
+          {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+          {successMessage && <p className="successMessage">{successMessage}</p>}
+          {copyMessage && <p className="successMessage">{copyMessage}</p>}
+
+          <div className="agentInfoBox">
+            <span>Fluxo rápido</span>
+
             <p>
-              Aqui ficam os pacotes finais salvos como entidade própria do
-              AffiliateAI Pro.
+              O Campaign Flow usa o Catálogo de Produtos, escolhe uma oferta com
+              Auto Pick, monta a campanha e salva tudo direto no histórico de
+              pacotes.
             </p>
           </div>
-
-          <button onClick={loadSavedPackages} disabled={loadingSavedPackages}>
-            {loadingSavedPackages ? "Atualizando..." : "Atualizar histórico"}
-          </button>
         </div>
 
-        {savedPackages.length === 0 ? (
-          <div className="packageEmpty">
-            Nenhum pacote salvo ainda. Monte uma campanha e clique em Salvar no
-            banco.
-          </div>
-        ) : (
-          <div className="packageSavedHistoryList">
-            {savedPackages.map((item) => (
-              <button
-                key={item.id}
-                className="packageSavedHistoryItem"
-                onClick={() => openSavedPackage(Number(item.id))}
-              >
-                <div>
-                  <strong>{item.product_name}</strong>
-                  <span>
-                    {item.niche} • {item.marketplace} •{" "}
-                    {formatDate(item.created_at)}
-                  </span>
-                </div>
+        <div className="agentHistoryCard">
+          <div className="agentSectionHeader">
+            <div>
+              <span>Histórico</span>
+              <h3>Pacotes salvos</h3>
+            </div>
 
-                <div>
-                  <strong>{item.score}/100</strong>
-                  <span>{item.decision}</span>
-                </div>
-              </button>
-            ))}
+            <button onClick={loadHistory} disabled={loadingHistory}>
+              {loadingHistory ? "Atualizando..." : "Atualizar"}
+            </button>
           </div>
-        )}
+
+          {history.length === 0 ? (
+            <div className="agentEmptyBox">
+              Nenhum pacote salvo ainda. Gere um Campaign Flow para começar.
+            </div>
+          ) : (
+            <div className="agentHistoryList">
+              {history.map((item) => (
+                <button
+                  key={item.id}
+                  className={`agentHistoryItem ${
+                    selectedPackage?.id === item.id ? "active" : ""
+                  }`}
+                  onClick={() => openPackage(item.id)}
+                  disabled={openingId === item.id}
+                >
+                  <div>
+                    <span>{item.decision}</span>
+                    <strong>{item.product_name}</strong>
+                    <p>
+                      {item.niche} • {formatMarketplace(item.marketplace)}
+                    </p>
+                    <small>{formatDate(item.created_at)}</small>
+                  </div>
+
+                  <div>
+                    <strong>{item.score}</strong>
+                    <p>{openingId === item.id ? "Abrindo..." : "score"}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {selectedPackage && (
+        <div className="agentResultCard">
+          <div className="agentResultHeader">
+            <div>
+              <span>
+                {selectedSource ? selectedSource : "Pacote selecionado"}
+              </span>
+
+              <h3>{selectedPackage.product_name}</h3>
+
+              <p>
+                {selectedPackage.decision} • Score {selectedPackage.score} •{" "}
+                {formatDate(selectedPackage.created_at)}
+              </p>
+            </div>
+
+            <button onClick={copyPackageText}>Copiar pacote</button>
+          </div>
+
+          <div className="agentResultStats">
+            <div>
+              <span>Nicho</span>
+              <strong>{selectedPackage.niche}</strong>
+            </div>
+
+            <div>
+              <span>Marketplace</span>
+              <strong>{formatMarketplace(selectedPackage.marketplace)}</strong>
+            </div>
+
+            <div>
+              <span>Decisão</span>
+              <strong>{selectedPackage.decision}</strong>
+            </div>
+
+            <div>
+              <span>Score</span>
+              <strong>{selectedPackage.score}</strong>
+            </div>
+
+            <div>
+              <span>Status</span>
+              <strong>{selectedPackage.status}</strong>
+            </div>
+
+            <div>
+              <span>ID</span>
+              <strong>#{selectedPackage.id}</strong>
+            </div>
+          </div>
+
+          {flowResult && (
+            <div className="agentResultGrid">
+              <div>
+                <span>Headline</span>
+                <p>{flowResult.headline}</p>
+              </div>
+
+              <div>
+                <span>Copy curta</span>
+                <p>{flowResult.short_copy}</p>
+              </div>
+
+              <div>
+                <span>Roteiro</span>
+                <p>{flowResult.video_script}</p>
+              </div>
+
+              <div>
+                <span>Briefing de imagem</span>
+                <p>{flowResult.image_brief}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="agentActions">
+            <button className="primaryButton" onClick={copyPackageText}>
+              Copiar campanha completa
+            </button>
+
+            <button onClick={exportTxt}>Exportar TXT</button>
+
+            <button onClick={exportPdf}>Exportar PDF</button>
+          </div>
+
+          <div className="agentMainText">
+            <span>Campanha completa</span>
+
+            <pre>{selectedPackage.package_text}</pre>
+          </div>
+
+          <details className="agentRawDetails">
+            <summary>Ver dados técnicos completos</summary>
+
+            <pre>{JSON.stringify(selectedPackage.source_data, null, 2)}</pre>
+          </details>
+        </div>
+      )}
     </section>
   );
 }
