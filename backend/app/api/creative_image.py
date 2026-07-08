@@ -39,13 +39,15 @@ def list_creative_image_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
+    creatives = (
         db.query(CreativeImageGeneration)
         .filter(CreativeImageGeneration.user_id == current_user.id)
         .order_by(CreativeImageGeneration.created_at.desc())
         .limit(30)
         .all()
     )
+
+    return [service.normalize_history_item(creative) for creative in creatives]
 
 
 @router.get("/{creative_id}", response_model=CreativeImageResponse)
