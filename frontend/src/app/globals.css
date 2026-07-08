@@ -4152,3 +4152,772 @@ h1 span {
     flex-direction: column;
   }
 }
+
+.dashboardPackageCard {
+  border-color: rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.1), transparent 42%),
+    rgba(255, 255, 255, 0.04);
+}
+
+/* ================================
+   DASHBOARD PREMIUM FIX
+   ================================ */
+
+.dashboardPanel {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto 80px;
+  padding: 26px;
+  border-radius: 34px;
+  border: 1px solid rgba(0, 255, 136, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.14), transparent 34%),
+    radial-gradient(circle at top right, rgba(0, 180, 255, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+}
+
+.dashboardHeader {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 22px;
+  align-items: stretch;
+  margin-bottom: 22px;
+}
+
+.dashboardEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.dashboardHeader h2 {
+  margin: 0 0 12px;
+  color: white;
+  font-size: clamp(34px, 5vw, 58px);
+  line-height: 0.96;
+  letter-spacing: -0.075em;
+}
+
+.dashboardHeader p {
+  max-width: 780px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+.dashboardStatus {
+  padding: 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(0, 255, 136, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.14), transparent 44%),
+    rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dashboardStatus span,
+.dashboardMetrics span,
+.dashboardCard span,
+.dashboardAgents span {
+  display: block;
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+}
+
+.dashboardStatus strong {
+  color: #00ff88;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.dashboardStatus p {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.dashboardMetrics {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboardMetrics > div {
+  min-height: 135px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.058), rgba(255, 255, 255, 0.025)),
+    rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.dashboardMetrics > div.highlight,
+.dashboardMetrics > div:last-child {
+  border-color: rgba(0, 255, 136, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 45%),
+    linear-gradient(180deg, rgba(0, 255, 136, 0.075), rgba(255, 255, 255, 0.025));
+}
+
+.dashboardMetrics strong {
+  display: block;
+  color: white;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.07em;
+  margin-bottom: 10px;
+}
+
+.dashboardMetrics p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.dashboardGrid + .dashboardGrid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.dashboardCard {
+  min-height: 190px;
+  padding: 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.07), transparent 38%),
+    rgba(0, 0, 0, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.045),
+    0 18px 50px rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.dashboardCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 255, 136, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.1), transparent 40%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.dashboardCard.highlight,
+.dashboardPackageCard {
+  border-color: rgba(0, 255, 136, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 42%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.dashboardCard h3 {
+  margin: 0 0 12px;
+  color: white;
+  font-size: 25px;
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+}
+
+.dashboardCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.dashboardAgents {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.dashboardAgents > div {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 255, 136, 0.12);
+  background:
+    radial-gradient(circle at top, rgba(0, 255, 136, 0.09), transparent 48%),
+    rgba(0, 0, 0, 0.24);
+}
+
+.dashboardAgents strong {
+  display: block;
+  color: #00ff88;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.dashboardAgents p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .dashboardMetrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dashboardGrid,
+  .dashboardGrid + .dashboardGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboardAgents {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboardPanel {
+    width: min(100% - 20px, 1180px);
+    padding: 18px;
+    border-radius: 26px;
+  }
+
+  .dashboardHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardMetrics,
+  .dashboardGrid,
+  .dashboardGrid + .dashboardGrid,
+  .dashboardAgents {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardMetrics > div,
+  .dashboardCard,
+  .dashboardAgents > div {
+    min-height: auto;
+  }
+}
+
+/* =========================================
+   DASHBOARD PRO CLEAN
+========================================= */
+
+.dashboardPro {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto 80px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(0, 255, 136, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 136, 0.08), transparent 35%),
+    radial-gradient(circle at top right, rgba(0, 140, 255, 0.06), transparent 30%),
+    rgba(5, 10, 12, 0.92);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+}
+
+.dashboardPro__hero {
+  display: grid;
+  grid-template-columns: 1.8fr 0.9fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.dashboardPro__heroContent,
+.dashboardPro__statusCard,
+.dashboardPro__spotlightCard,
+.dashboardPro__infoCard,
+.dashboardPro__activityCard,
+.dashboardPro__latestCard,
+.dashboardPro__modulesCard,
+.dashboardPro__statCard {
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.dashboardPro__heroContent {
+  padding: 24px;
+}
+
+.dashboardPro__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  color: #00ff88;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.dashboardPro__heroContent h2 {
+  margin: 0 0 12px;
+  color: #f5fff9;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.02;
+  letter-spacing: -0.06em;
+}
+
+.dashboardPro__heroContent p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.7;
+  max-width: 780px;
+}
+
+.dashboardPro__statusCard {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.12), transparent 45%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.dashboardPro__statusCard span,
+.dashboardPro__statCard span,
+.dashboardPro__cardHeader span,
+.dashboardPro__cardTitle span,
+.dashboardPro__infoCard span,
+.dashboardPro__miniCard span,
+.dashboardPro__moduleItem span,
+.dashboardPro__summaryGrid span {
+  display: block;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+}
+
+.dashboardPro__statusCard strong {
+  color: #00ff88;
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.dashboardPro__statusCard small {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+}
+
+.dashboardPro__statusMeta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.dashboardPro__statusMeta label {
+  display: block;
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.dashboardPro__statusMeta p {
+  margin: 0;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.dashboardPro__topStats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.dashboardPro__statCard {
+  padding: 18px;
+  min-height: 126px;
+}
+
+.dashboardPro__statCard strong {
+  display: block;
+  color: #ffffff;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin-bottom: 10px;
+}
+
+.dashboardPro__statCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dashboardPro__statCard--highlight {
+  border-color: rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 46%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.dashboardPro__mainGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dashboardPro__spotlightCard {
+  padding: 20px;
+}
+
+.dashboardPro__cardHeader,
+.dashboardPro__cardTitle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.dashboardPro__cardHeader button {
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  background: rgba(0, 255, 136, 0.08);
+  color: #00ff88;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.dashboardPro__spotlightMetric {
+  display: grid;
+  grid-template-columns: 1.2fr 180px;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dashboardPro__spotlightMetric label {
+  display: block;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.12em;
+}
+
+.dashboardPro__spotlightMetric h3 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+}
+
+.dashboardPro__spotlightMetric p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.6;
+}
+
+.dashboardPro__scoreBubble {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 255, 136, 0.16);
+  background:
+    radial-gradient(circle at top, rgba(0, 255, 136, 0.16), transparent 48%),
+    rgba(0, 0, 0, 0.26);
+  text-align: center;
+}
+
+.dashboardPro__scoreBubble strong {
+  display: block;
+  color: #00ff88;
+  font-size: 46px;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.dashboardPro__summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.dashboardPro__summaryGrid > div {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dashboardPro__summaryGrid strong {
+  color: white;
+  font-size: 18px;
+}
+
+.dashboardPro__sideColumn {
+  display: grid;
+  gap: 16px;
+}
+
+.dashboardPro__infoCard {
+  padding: 20px;
+}
+
+.dashboardPro__infoCard h3 {
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.dashboardPro__infoCard p,
+.dashboardPro__infoCard small,
+.dashboardPro__infoCard li {
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.6;
+}
+
+.dashboardPro__infoCard ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.dashboardPro__infoCard--highlight {
+  border-color: rgba(0, 255, 136, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 136, 0.16), transparent 46%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.dashboardPro__bottomGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dashboardPro__activityCard,
+.dashboardPro__latestCard,
+.dashboardPro__modulesCard {
+  padding: 20px;
+}
+
+.dashboardPro__cardTitle h3 {
+  margin: 0;
+  color: white;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.dashboardPro__activityList {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboardPro__activityItem {
+  display: grid;
+  grid-template-columns: 130px 1fr 90px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.dashboardPro__activityBadge {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  color: #00ff88;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dashboardPro__activityBody strong {
+  display: block;
+  color: white;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.dashboardPro__activityBody p {
+  margin: 0 0 4px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+}
+
+.dashboardPro__activityBody small {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+}
+
+.dashboardPro__activityScore {
+  color: #00ff88;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.dashboardPro__latestGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.dashboardPro__miniCard {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.dashboardPro__miniCard strong {
+  display: block;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.dashboardPro__miniCard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dashboardPro__modulesGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.dashboardPro__moduleItem {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.dashboardPro__moduleItem strong {
+  display: block;
+  color: #ffffff;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.dashboardPro__moduleItem p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dashboardPro__moduleItem.is-active {
+  border-color: rgba(0, 255, 136, 0.16);
+  background:
+    radial-gradient(circle at top, rgba(0, 255, 136, 0.1), transparent 48%),
+    rgba(255, 255, 255, 0.025);
+}
+
+.dashboardPro__moduleItem.is-active strong {
+  color: #00ff88;
+}
+
+.dashboardPro__empty {
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 1150px) {
+  .dashboardPro__topStats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dashboardPro__mainGrid,
+  .dashboardPro__bottomGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardPro__modulesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .dashboardPro__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardPro__spotlightMetric {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardPro__summaryGrid,
+  .dashboardPro__latestGrid,
+  .dashboardPro__topStats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardPro__activityItem {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardPro__activityScore {
+    text-align: left;
+  }
+
+  .dashboardPro__modulesGrid {
+    grid-template-columns: 1fr;
+  }
+}
