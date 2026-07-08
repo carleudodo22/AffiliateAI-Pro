@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from app.models.product_analysis import ProductAnalysis
@@ -16,7 +19,26 @@ class ProductHunterService:
         db: Session,
         current_user: User,
     ) -> ProductHunterResponse:
-        fallback_package = self._build_fallback_package(data)
+        clean_product_name = data.product_name.strip()
+        clean_niche = data.niche.strip().lower()
+        clean_marketplace = self._normalize_marketplace(data.marketplace)
+
+        target_audience = (
+            data.target_audience
+            or f"pessoas interessadas em produtos do nicho de {clean_niche}"
+        )
+
+        fallback_package = self._build_fallback_package(
+            product_name=clean_product_name,
+            niche=clean_niche,
+            marketplace=clean_marketplace,
+            average_price=data.average_price,
+            commission_percent=data.commission_percent,
+            target_audience=target_audience,
+            product_url=data.product_url or "",
+            traffic_channel=data.traffic_channel or "tiktok",
+            competition_level=data.competition_level or "media",
+        )
 
         ai_result = ai_engine.generate_json(
             system_prompt=(
@@ -26,13 +48,15 @@ class ProductHunterService:
                 "e canais recomendados."
             ),
             user_prompt=(
-                f"Produto: {data.product_name}\n"
-                f"Nicho: {data.niche}\n"
-                f"Marketplace: {data.marketplace}\n"
+                f"Produto: {clean_product_name}\n"
+                f"Nicho: {clean_niche}\n"
+                f"Marketplace: {clean_marketplace}\n"
                 f"Preço médio: {data.average_price}\n"
                 f"Comissão: {data.commission_percent}%\n"
-                f"Público-alvo: {data.target_audience or 'não informado'}\n"
-                f"URL do produto: {data.product_url or 'não informada'}"
+                f"Público-alvo: {target_audience}\n"
+                f"URL do produto: {data.product_url or 'não informada'}\n"
+                f"Canal: {data.traffic_channel or 'tiktok'}\n"
+                f"Concorrência: {data.competition_level or 'media'}"
             ),
             fallback_data=fallback_package,
         )
@@ -45,146 +69,342 @@ class ProductHunterService:
             "mode": ai_result.get("mode", "safe_mock"),
         }
 
-        analysis = ProductAnalysis(
-            user_id=current_user.id,
-            product_name=data.product_name.strip(),
-            niche=data.niche.strip().lower(),
-            marketplace=data.marketplace,
+        response_data = self._build_response_data(
+            product_name=clean_product_name,
+            niche=clean_niche,
+            marketplace=clean_marketplace,
             average_price=data.average_price,
             commission_percent=data.commission_percent,
-            score=analysis_package["score"],
-            decision=analysis_package["decision"],
-            summary=analysis_package["summary"],
-            strengths=analysis_package["strengths"],
-            weaknesses=analysis_package["weaknesses"],
-            opportunities=analysis_package["opportunities"],
-            risks=analysis_package["risks"],
-            target_audience=analysis_package["target_audience"],
-            content_angles=analysis_package["content_angles"],
-            recommended_channels=analysis_package["recommended_channels"],
+            target_audience=target_audience,
             analysis_package=analysis_package,
-            status="completed",
         )
 
-        db.add(analysis)
-        db.commit()
-        db.refresh(analysis)
+        saved_analysis = self._save_analysis_safely(
+            data=response_data,
+            source_request=data,
+            db=db,
+            current_user=current_user,
+        )
 
-        return self.get_product_response(analysis)
+        if saved_analysis is not None:
+            response_data["id"] = getattr(saved_analysis, "id", None)
+            response_data["created_at"] = getattr(
+                saved_analysis,
+                "created_at",
+                datetime.utcnow(),
+            )
+        else:
+            response_data["id"] = None
+            response_data["status"] = "completed_unsaved"
+            response_data["created_at"] = datetime.utcnow()
+
+        return ProductHunterResponse(**response_data)
 
     def get_product_response(
         self,
         analysis: ProductAnalysis,
     ) -> ProductHunterResponse:
         return ProductHunterResponse(
-            id=analysis.id,
+            id=self._safe_get(analysis, "id", None),
             agent="Product Hunter Agent",
-            status=analysis.status,
-            product_name=analysis.product_name,
-            niche=analysis.niche,
-            marketplace=analysis.marketplace,
-            average_price=analysis.average_price,
-            commission_percent=analysis.commission_percent,
-            score=analysis.score,
-            decision=analysis.decision,
-            summary=analysis.summary,
-            strengths=analysis.strengths,
-            weaknesses=analysis.weaknesses,
-            opportunities=analysis.opportunities,
-            risks=analysis.risks,
-            target_audience=analysis.target_audience,
-            content_angles=analysis.content_angles,
-            recommended_channels=analysis.recommended_channels,
-            analysis_package=analysis.analysis_package,
-            created_at=analysis.created_at,
+            status=self._safe_get(analysis, "status", "completed"),
+            product_name=self._safe_get(
+                analysis,
+                "product_name",
+                "Produto analisado",
+            ),
+            niche=self._safe_get(analysis, "niche", "nicho"),
+            marketplace=self._safe_get(analysis, "marketplace", "não definido"),
+            average_price=float(self._safe_get(analysis, "average_price", 0) or 0),
+            commission_percent=float(
+                self._safe_get(analysis, "commission_percent", 0) or 0
+            ),
+            score=str(self._safe_get(analysis, "score", "--")),
+            decision=self._safe_get(analysis, "decision", "não definido"),
+            summary=self._safe_get(
+                analysis,
+                "summary",
+                "Registro antigo carregado com dados seguros.",
+            ),
+            strengths=self._safe_list(
+                self._safe_get(
+                    analysis,
+                    "strengths",
+                    [
+                        "Produto salvo no histórico.",
+                        "Pode ser usado como referência para campanha.",
+                    ],
+                )
+            ),
+            weaknesses=self._safe_list(
+                self._safe_get(
+                    analysis,
+                    "weaknesses",
+                    [
+                        "Registro antigo com alguns campos incompletos.",
+                    ],
+                )
+            ),
+            opportunities=self._safe_list(
+                self._safe_get(
+                    analysis,
+                    "opportunities",
+                    [
+                        "Reanalisar o produto para gerar uma análise atualizada.",
+                    ],
+                )
+            ),
+            risks=self._safe_list(
+                self._safe_get(
+                    analysis,
+                    "risks",
+                    [
+                        "Dados antigos podem não representar a oportunidade atual.",
+                    ],
+                )
+            ),
+            target_audience=self._safe_get(
+                analysis,
+                "target_audience",
+                "Público não informado",
+            ),
+            content_angles=self._safe_list(
+                self._safe_get(
+                    analysis,
+                    "content_angles",
+                    [
+                        "Review rápido do produto",
+                        "Demonstração prática",
+                        "Achadinho com foco em benefício",
+                    ],
+                )
+            ),
+            recommended_channels=self._safe_list(
+                self._safe_get(
+                    analysis,
+                    "recommended_channels",
+                    ["TikTok", "Instagram Reels", "YouTube Shorts"],
+                )
+            ),
+            analysis_package=self._safe_dict(
+                self._safe_get(
+                    analysis,
+                    "analysis_package",
+                    {
+                        "legacy_record": True,
+                        "message": "Registro antigo normalizado pelo backend.",
+                    },
+                )
+            ),
+            created_at=self._safe_get(analysis, "created_at", datetime.utcnow()),
         )
+
+    def _save_analysis_safely(
+        self,
+        data: dict[str, Any],
+        source_request: ProductHunterRequest,
+        db: Session,
+        current_user: User,
+    ) -> ProductAnalysis | None:
+        possible_payload = {
+            "user_id": current_user.id,
+            "product_name": data["product_name"],
+            "niche": data["niche"],
+            "marketplace": data["marketplace"],
+            "average_price": data["average_price"],
+            "commission_percent": data["commission_percent"],
+            "score": data["score"],
+            "decision": data["decision"],
+            "summary": data["summary"],
+            "strengths": data["strengths"],
+            "weaknesses": data["weaknesses"],
+            "opportunities": data["opportunities"],
+            "risks": data["risks"],
+            "target_audience": data["target_audience"],
+            "content_angles": data["content_angles"],
+            "recommended_channels": data["recommended_channels"],
+            "analysis_package": data["analysis_package"],
+            "status": data["status"],
+            "product_url": source_request.product_url,
+            "traffic_channel": source_request.traffic_channel or "tiktok",
+            "competition_level": source_request.competition_level or "media",
+            "opportunity_score": data["score"],
+            "opportunity_level": data["decision"],
+            "recommendation": data["summary"],
+            "analysis_summary": data["summary"],
+        }
+
+        try:
+            model_columns = set(ProductAnalysis.__table__.columns.keys())
+
+            payload = {
+                key: value
+                for key, value in possible_payload.items()
+                if key in model_columns
+            }
+
+            analysis = ProductAnalysis(**payload)
+
+            db.add(analysis)
+            db.commit()
+            db.refresh(analysis)
+
+            return analysis
+        except Exception:
+            db.rollback()
+            return None
+
+    def _build_response_data(
+        self,
+        product_name: str,
+        niche: str,
+        marketplace: str,
+        average_price: float,
+        commission_percent: float,
+        target_audience: str,
+        analysis_package: dict[str, Any],
+    ) -> dict[str, Any]:
+        score = str(analysis_package.get("score", "--"))
+        decision = str(analysis_package.get("decision", "não definido"))
+
+        return {
+            "id": None,
+            "agent": "Product Hunter Agent",
+            "status": "completed",
+            "product_name": product_name,
+            "niche": niche,
+            "marketplace": marketplace,
+            "average_price": average_price,
+            "commission_percent": commission_percent,
+            "score": score,
+            "decision": decision,
+            "summary": str(
+                analysis_package.get(
+                    "summary",
+                    "Produto analisado com base nos dados informados.",
+                )
+            ),
+            "strengths": self._safe_list(
+                analysis_package.get(
+                    "strengths",
+                    [
+                        "Produto com potencial de venda.",
+                        "Pode ser trabalhado em conteúdo curto.",
+                    ],
+                )
+            ),
+            "weaknesses": self._safe_list(
+                analysis_package.get(
+                    "weaknesses",
+                    [
+                        "Precisa validar concorrência e preço.",
+                    ],
+                )
+            ),
+            "opportunities": self._safe_list(
+                analysis_package.get(
+                    "opportunities",
+                    [
+                        "Criar vídeos demonstrando o principal benefício.",
+                        "Testar criativos com dor e solução.",
+                    ],
+                )
+            ),
+            "risks": self._safe_list(
+                analysis_package.get(
+                    "risks",
+                    [
+                        "Oferta pode variar conforme marketplace e disponibilidade.",
+                    ],
+                )
+            ),
+            "target_audience": target_audience,
+            "content_angles": self._safe_list(
+                analysis_package.get(
+                    "content_angles",
+                    [
+                        f"Review rápido do {product_name}",
+                        f"Por que o {product_name} pode ajudar no nicho de {niche}",
+                        f"Achadinho útil para {target_audience}",
+                    ],
+                )
+            ),
+            "recommended_channels": self._safe_list(
+                analysis_package.get(
+                    "recommended_channels",
+                    ["TikTok", "Instagram Reels", "YouTube Shorts"],
+                )
+            ),
+            "analysis_package": analysis_package,
+            "created_at": datetime.utcnow(),
+        }
 
     def _build_fallback_package(
         self,
-        data: ProductHunterRequest,
-    ) -> dict:
-        product_name = data.product_name.strip()
-        niche = data.niche.strip().lower()
-        marketplace = data.marketplace
-
-        average_price = data.average_price or 0
-        commission_percent = data.commission_percent or 0
-
-        target_audience = (
-            data.target_audience
-            or f"pessoas interessadas em produtos do nicho de {niche}"
-        )
-
+        product_name: str,
+        niche: str,
+        marketplace: str,
+        average_price: float,
+        commission_percent: float,
+        target_audience: str,
+        product_url: str,
+        traffic_channel: str,
+        competition_level: str,
+    ) -> dict[str, Any]:
         score_number = self._calculate_score(
             average_price=average_price,
             commission_percent=commission_percent,
             marketplace=marketplace,
+            competition_level=competition_level,
         )
 
-        score = f"{score_number}/100"
-        decision = self._build_decision(score_number)
-        summary = self._build_summary(
-            product_name=product_name,
-            niche=niche,
-            marketplace=marketplace,
-            average_price=average_price,
-            commission_percent=commission_percent,
-            score_number=score_number,
-        )
-
-        strengths = self._build_strengths(
-            product_name=product_name,
-            niche=niche,
-            marketplace=marketplace,
-            commission_percent=commission_percent,
-        )
-
-        weaknesses = self._build_weaknesses(
-            average_price=average_price,
-            commission_percent=commission_percent,
-        )
-
-        opportunities = self._build_opportunities(
-            product_name=product_name,
-            niche=niche,
-            marketplace=marketplace,
-        )
-
-        risks = self._build_risks(
-            marketplace=marketplace,
-            average_price=average_price,
-        )
-
-        content_angles = [
-            f"Demonstração prática do {product_name} em uso real",
-            f"Antes e depois usando {product_name}",
-            f"Por que esse produto chama atenção no nicho de {niche}",
-            f"Review rápido: vale a pena comprar {product_name}?",
-            f"Oferta ou achadinho: {product_name} no {self._format_marketplace(marketplace)}",
-        ]
-
-        recommended_channels = self._build_channels(marketplace)
+        decision = self._decision(score_number)
 
         return {
-            "score": score,
+            "score": str(score_number),
             "decision": decision,
-            "summary": summary,
-            "strengths": strengths,
-            "weaknesses": weaknesses,
-            "opportunities": opportunities,
-            "risks": risks,
+            "summary": (
+                f"O produto {product_name} foi analisado para o nicho de {niche}. "
+                f"Ele pode funcionar bem para {target_audience}, principalmente com "
+                f"conteúdo direto em {traffic_channel}."
+            ),
+            "strengths": [
+                "Produto com boa possibilidade de demonstração em conteúdo curto.",
+                "Pode ser usado em campanhas de afiliados com CTA direto.",
+                "Nicho permite criação de conteúdo recorrente.",
+            ],
+            "weaknesses": [
+                "É necessário validar preço, avaliações e disponibilidade.",
+                "A concorrência pode exigir criativos mais fortes.",
+            ],
+            "opportunities": [
+                f"Criar vídeo mostrando o problema que o {product_name} resolve.",
+                "Testar headline com dor, curiosidade e benefício rápido.",
+                "Usar prova visual, antes/depois ou demonstração prática.",
+            ],
+            "risks": [
+                "Produto pode ter variação de preço ou estoque.",
+                "Comissão pode mudar conforme marketplace.",
+                "Criativo fraco pode diminuir conversão.",
+            ],
             "target_audience": target_audience,
-            "content_angles": content_angles,
-            "recommended_channels": recommended_channels,
-            "strategy": {
-                "main_angle": content_angles[0],
-                "marketplace": self._format_marketplace(marketplace),
-                "price_position": self._price_position(average_price),
-                "commission_quality": self._commission_quality(commission_percent),
-                "next_step": (
-                    "Criar conteúdo curto com demonstração visual, CTA direto "
-                    "e prova de benefício rápido."
-                ),
+            "content_angles": [
+                f"Review honesto do {product_name}",
+                f"Vale a pena comprar {product_name}?",
+                f"Achadinho para quem está no nicho de {niche}",
+                f"Como usar {product_name} no dia a dia",
+            ],
+            "recommended_channels": self._recommended_channels(traffic_channel),
+            "input_data": {
+                "product_name": product_name,
+                "niche": niche,
+                "marketplace": marketplace,
+                "average_price": average_price,
+                "commission_percent": commission_percent,
+                "target_audience": target_audience,
+                "product_url": product_url,
+                "traffic_channel": traffic_channel,
+                "competition_level": competition_level,
             },
         }
 
@@ -193,22 +413,27 @@ class ProductHunterService:
         average_price: float,
         commission_percent: float,
         marketplace: str,
+        competition_level: str,
     ) -> int:
-        score = 50
+        score = 45
 
         if commission_percent >= 15:
-            score += 20
-        elif commission_percent >= 8:
-            score += 12
-        elif commission_percent >= 3:
-            score += 6
+            score += 22
+        elif commission_percent >= 10:
+            score += 16
+        elif commission_percent >= 5:
+            score += 9
+        else:
+            score += 4
 
         if 30 <= average_price <= 200:
-            score += 15
+            score += 18
         elif 200 < average_price <= 500:
+            score += 12
+        elif 1 <= average_price < 30:
             score += 8
         elif average_price > 500:
-            score += 3
+            score += 5
 
         if marketplace in ["shopee", "mercado_livre", "amazon"]:
             score += 8
@@ -216,170 +441,92 @@ class ProductHunterService:
         if marketplace in ["hotmart", "kiwify", "monetizze"]:
             score += 10
 
-        return max(0, min(score, 100))
+        normalized_competition = competition_level.strip().lower()
 
-    def _build_decision(
-        self,
-        score_number: int,
-    ) -> str:
-        if score_number >= 80:
-            return "Produto forte para campanha. Pode avançar para conteúdo e criativo."
+        if normalized_competition in ["baixa", "baixo", "low"]:
+            score += 10
+        elif normalized_competition in ["media", "média", "medio", "médio"]:
+            score += 5
+        elif normalized_competition in ["alta", "alto", "high"]:
+            score -= 4
 
-        if score_number >= 65:
-            return "Produto promissor. Vale testar com criativo simples e baixo risco."
+        return int(max(0, min(score, 100)))
 
-        if score_number >= 50:
-            return "Produto mediano. Testar apenas se tiver bom link, boa oferta ou bom visual."
+    def _decision(self, score: int) -> str:
+        if score >= 85:
+            return "EXCELENTE OPORTUNIDADE"
 
-        return "Produto fraco no momento. Melhor procurar outra oportunidade."
+        if score >= 70:
+            return "BOA OPORTUNIDADE"
 
-    def _build_summary(
-        self,
-        product_name: str,
-        niche: str,
-        marketplace: str,
-        average_price: float,
-        commission_percent: float,
-        score_number: int,
-    ) -> str:
-        return (
-            f"O produto {product_name} foi analisado no nicho de {niche}, "
-            f"com marketplace {self._format_marketplace(marketplace)}, preço médio "
-            f"de R$ {average_price:.2f} e comissão estimada de {commission_percent:.1f}%. "
-            f"O score calculado foi {score_number}/100. A recomendação depende da força "
-            f"visual do produto, da oferta e da facilidade de criar conteúdo curto."
-        )
+        if score >= 55:
+            return "OPORTUNIDADE MODERADA"
 
-    def _build_strengths(
-        self,
-        product_name: str,
-        niche: str,
-        marketplace: str,
-        commission_percent: float,
-    ) -> list[str]:
-        strengths = [
-            f"Produto com potencial para conteúdo visual no nicho de {niche}.",
-            f"Pode ser usado em vídeos curtos de demonstração e review.",
-            f"Marketplace {self._format_marketplace(marketplace)} é fácil de entender pelo público.",
-        ]
+        return "VALIDAR MELHOR"
 
-        if commission_percent >= 8:
-            strengths.append("Comissão interessante para campanhas de afiliado.")
+    def _recommended_channels(self, traffic_channel: str) -> list[str]:
+        channel = traffic_channel.strip().lower()
 
-        if commission_percent >= 15:
-            strengths.append("Comissão alta, podendo compensar testes pagos ou produção melhor.")
-
-        return strengths
-
-    def _build_weaknesses(
-        self,
-        average_price: float,
-        commission_percent: float,
-    ) -> list[str]:
-        weaknesses = []
-
-        if commission_percent < 5:
-            weaknesses.append("Comissão baixa, pode exigir alto volume de vendas.")
-
-        if average_price <= 0:
-            weaknesses.append("Preço médio não informado, dificultando análise de conversão.")
-
-        if average_price > 500:
-            weaknesses.append("Preço alto, pode exigir mais prova, autoridade e confiança.")
-
-        if not weaknesses:
-            weaknesses.append("Ainda precisa validar demanda real e qualidade da oferta.")
-
-        return weaknesses
-
-    def _build_opportunities(
-        self,
-        product_name: str,
-        niche: str,
-        marketplace: str,
-    ) -> list[str]:
-        return [
-            f"Criar campanha de achadinho para {self._format_marketplace(marketplace)}.",
-            f"Produzir vídeo curto mostrando o benefício principal do {product_name}.",
-            f"Usar prova visual e comparação simples para atrair público de {niche}.",
-            "Testar título direto com promessa clara e CTA para conferir oferta.",
-        ]
-
-    def _build_risks(
-        self,
-        marketplace: str,
-        average_price: float,
-    ) -> list[str]:
-        risks = [
-            "Concorrência com outros afiliados divulgando produtos parecidos.",
-            "Produto pode ter baixa conversão se a oferta não parecer confiável.",
-        ]
-
-        if marketplace in ["shopee", "mercado_livre", "amazon"]:
-            risks.append("Preço e disponibilidade podem mudar com frequência.")
-
-        if average_price > 500:
-            risks.append("Preço alto pode aumentar objeções antes da compra.")
-
-        return risks
-
-    def _build_channels(
-        self,
-        marketplace: str,
-    ) -> list[str]:
-        if marketplace in ["hotmart", "kiwify", "monetizze"]:
-            return ["Instagram", "YouTube Shorts", "TikTok", "WhatsApp"]
-
-        if marketplace in ["shopee", "mercado_livre", "amazon"]:
-            return ["TikTok", "Instagram Reels", "YouTube Shorts", "Pinterest"]
-
-        return ["TikTok", "Instagram", "WhatsApp"]
-
-    def _format_marketplace(
-        self,
-        marketplace: str,
-    ) -> str:
         labels = {
-            "shopee": "Shopee",
-            "mercado_livre": "Mercado Livre",
-            "amazon": "Amazon",
-            "hotmart": "Hotmart",
-            "kiwify": "Kiwify",
-            "monetizze": "Monetizze",
-            "outro": "Outro",
+            "tiktok": "TikTok",
+            "instagram": "Instagram Reels",
+            "youtube_shorts": "YouTube Shorts",
+            "whatsapp": "WhatsApp",
+            "pinterest": "Pinterest",
+            "facebook_ads": "Facebook Ads",
+            "google": "Google",
         }
 
-        return labels.get(marketplace, marketplace)
+        main_channel = labels.get(channel, "TikTok")
 
-    def _price_position(
-        self,
-        average_price: float,
-    ) -> str:
-        if average_price <= 0:
-            return "preço não informado"
+        channels = [main_channel, "Instagram Reels", "YouTube Shorts"]
 
-        if average_price <= 50:
-            return "baixo ticket"
+        unique_channels = []
 
-        if average_price <= 200:
-            return "ticket popular"
+        for item in channels:
+            if item not in unique_channels:
+                unique_channels.append(item)
 
-        if average_price <= 500:
-            return "ticket médio"
+        return unique_channels
 
-        return "ticket alto"
+    def _normalize_marketplace(self, value: str) -> str:
+        normalized = value.strip().lower().replace(" ", "_").replace("-", "_")
 
-    def _commission_quality(
-        self,
-        commission_percent: float,
-    ) -> str:
-        if commission_percent >= 15:
-            return "comissão alta"
+        aliases = {
+            "shopee": "shopee",
+            "mercado_livre": "mercado_livre",
+            "mercadolivre": "mercado_livre",
+            "amazon": "amazon",
+            "hotmart": "hotmart",
+            "kiwify": "kiwify",
+            "monetizze": "monetizze",
+            "outro": "outro",
+        }
 
-        if commission_percent >= 8:
-            return "comissão boa"
+        return aliases.get(normalized, normalized or "outro")
 
-        if commission_percent >= 3:
-            return "comissão baixa/moderada"
+    def _safe_get(self, obj, field: str, fallback=None):
+        value = getattr(obj, field, fallback)
 
-        return "comissão baixa ou não informada"
+        if value is None or value == "":
+            return fallback
+
+        return value
+
+    def _safe_list(self, value) -> list[str]:
+        if isinstance(value, list):
+            return [str(item) for item in value]
+
+        if isinstance(value, tuple):
+            return [str(item) for item in value]
+
+        if isinstance(value, str) and value.strip():
+            return [value]
+
+        return []
+
+    def _safe_dict(self, value) -> dict[str, Any]:
+        if isinstance(value, dict):
+            return value
+
+        return {}

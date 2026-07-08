@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -32,15 +33,57 @@ def safe_get(obj, field: str, fallback=None):
     return value
 
 
+def safe_list(value) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value]
+
+    if isinstance(value, tuple):
+        return [str(item) for item in value]
+
+    if isinstance(value, str) and value.strip():
+        return [value]
+
+    return []
+
+
+def safe_dict(value) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+
+    return {}
+
+
 def normalize_history_item(analysis: ProductAnalysis) -> dict:
+    analysis_package = safe_dict(
+        safe_get(
+            analysis,
+            "analysis_package",
+            {},
+        )
+    )
+
+    score = safe_get(
+        analysis,
+        "score",
+        analysis_package.get("score", "--"),
+    )
+
+    decision = safe_get(
+        analysis,
+        "decision",
+        analysis_package.get("decision", "não definido"),
+    )
+
+    status = safe_get(analysis, "status", "completed")
+
     return {
         "id": safe_get(analysis, "id", 0),
         "product_name": safe_get(analysis, "product_name", "Produto analisado"),
         "niche": safe_get(analysis, "niche", "nicho"),
         "marketplace": safe_get(analysis, "marketplace", "não definido"),
-        "score": safe_get(analysis, "score", "--"),
-        "decision": safe_get(analysis, "decision", "não definido"),
-        "status": safe_get(analysis, "status", "completed"),
+        "score": str(score),
+        "decision": str(decision),
+        "status": str(status),
         "created_at": safe_get(analysis, "created_at", datetime.utcnow()),
     }
 
@@ -50,35 +93,121 @@ def normalize_detail_item(analysis: ProductAnalysis) -> dict:
     niche = safe_get(analysis, "niche", "nicho")
     marketplace = safe_get(analysis, "marketplace", "não definido")
 
+    analysis_package = safe_dict(
+        safe_get(
+            analysis,
+            "analysis_package",
+            {},
+        )
+    )
+
     target_audience = safe_get(
         analysis,
         "target_audience",
-        f"pessoas interessadas em produtos do nicho de {niche}",
+        analysis_package.get(
+            "target_audience",
+            f"pessoas interessadas em produtos do nicho de {niche}",
+        ),
     )
 
-    content_angles = safe_get(
-        analysis,
-        "content_angles",
-        [
-            f"Demonstração prática do {product_name}",
-            f"Review rápido do {product_name}",
-            f"Achadinho no nicho de {niche}",
-        ],
+    content_angles = safe_list(
+        safe_get(
+            analysis,
+            "content_angles",
+            analysis_package.get(
+                "content_angles",
+                [
+                    f"Demonstração prática do {product_name}",
+                    f"Review rápido do {product_name}",
+                    f"Achadinho no nicho de {niche}",
+                ],
+            ),
+        )
     )
 
-    recommended_channels = safe_get(
-        analysis,
-        "recommended_channels",
-        ["TikTok", "Instagram Reels", "YouTube Shorts"],
+    recommended_channels = safe_list(
+        safe_get(
+            analysis,
+            "recommended_channels",
+            analysis_package.get(
+                "recommended_channels",
+                ["TikTok", "Instagram Reels", "YouTube Shorts"],
+            ),
+        )
     )
 
-    analysis_package = safe_get(
+    score = safe_get(
         analysis,
-        "analysis_package",
-        {
-            "legacy_record": True,
-            "message": "Registro antigo normalizado pelo backend.",
-        },
+        "score",
+        analysis_package.get("score", "--"),
+    )
+
+    decision = safe_get(
+        analysis,
+        "decision",
+        analysis_package.get("decision", "não definido"),
+    )
+
+    summary = safe_get(
+        analysis,
+        "summary",
+        analysis_package.get(
+            "summary",
+            "Registro carregado com valores seguros para não quebrar o sistema.",
+        ),
+    )
+
+    strengths = safe_list(
+        safe_get(
+            analysis,
+            "strengths",
+            analysis_package.get(
+                "strengths",
+                [
+                    "Produto salvo no histórico.",
+                    "Pode ser usado como referência para campanha.",
+                ],
+            ),
+        )
+    )
+
+    weaknesses = safe_list(
+        safe_get(
+            analysis,
+            "weaknesses",
+            analysis_package.get(
+                "weaknesses",
+                [
+                    "Registro antigo com alguns campos incompletos.",
+                ],
+            ),
+        )
+    )
+
+    opportunities = safe_list(
+        safe_get(
+            analysis,
+            "opportunities",
+            analysis_package.get(
+                "opportunities",
+                [
+                    "Reanalisar o produto para gerar um pacote atualizado.",
+                ],
+            ),
+        )
+    )
+
+    risks = safe_list(
+        safe_get(
+            analysis,
+            "risks",
+            analysis_package.get(
+                "risks",
+                [
+                    "Dados antigos podem não representar a oportunidade atual.",
+                ],
+            ),
+        )
     )
 
     return {
@@ -88,48 +217,25 @@ def normalize_detail_item(analysis: ProductAnalysis) -> dict:
         "product_name": product_name,
         "niche": niche,
         "marketplace": marketplace,
-        "average_price": safe_get(analysis, "average_price", 0),
-        "commission_percent": safe_get(analysis, "commission_percent", 0),
-        "score": safe_get(analysis, "score", "--"),
-        "decision": safe_get(analysis, "decision", "não definido"),
-        "summary": safe_get(
-            analysis,
-            "summary",
-            "Esse é um registro antigo do Product Hunter. Ele foi carregado com valores seguros para não quebrar o sistema.",
+        "average_price": float(safe_get(analysis, "average_price", 0) or 0),
+        "commission_percent": float(
+            safe_get(analysis, "commission_percent", 0) or 0
         ),
-        "strengths": safe_get(
-            analysis,
-            "strengths",
-            [
-                "Produto salvo no histórico.",
-                "Pode ser usado como referência para campanha.",
-            ],
-        ),
-        "weaknesses": safe_get(
-            analysis,
-            "weaknesses",
-            [
-                "Registro antigo com alguns campos incompletos.",
-            ],
-        ),
-        "opportunities": safe_get(
-            analysis,
-            "opportunities",
-            [
-                "Reanalisar o produto para gerar um pacote atualizado.",
-            ],
-        ),
-        "risks": safe_get(
-            analysis,
-            "risks",
-            [
-                "Dados antigos podem não representar a oportunidade atual.",
-            ],
-        ),
-        "target_audience": target_audience,
+        "score": str(score),
+        "decision": str(decision),
+        "summary": str(summary),
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "opportunities": opportunities,
+        "risks": risks,
+        "target_audience": str(target_audience),
         "content_angles": content_angles,
         "recommended_channels": recommended_channels,
-        "analysis_package": analysis_package,
+        "analysis_package": analysis_package
+        or {
+            "legacy_record": True,
+            "message": "Registro antigo normalizado pelo backend.",
+        },
         "created_at": safe_get(analysis, "created_at", datetime.utcnow()),
     }
 

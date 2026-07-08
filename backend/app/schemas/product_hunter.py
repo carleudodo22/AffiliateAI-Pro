@@ -1,30 +1,22 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
-
-
-Marketplace = Literal[
-    "shopee",
-    "mercado_livre",
-    "amazon",
-    "hotmart",
-    "kiwify",
-    "monetizze",
-    "outro",
-]
 
 
 class ProductHunterRequest(BaseModel):
     product_name: str = Field(..., min_length=2)
     niche: str = Field(..., min_length=2)
-    marketplace: Marketplace = "shopee"
+    marketplace: str = "shopee"
 
     average_price: float = 0
     commission_percent: float = 0
 
     target_audience: str | None = None
     product_url: str | None = None
+
+    traffic_channel: str | None = "tiktok"
+    competition_level: str | None = "media"
 
 
 class ProductHunterStrategy(BaseModel):
@@ -34,7 +26,7 @@ class ProductHunterStrategy(BaseModel):
 
 
 class ProductHunterResponse(BaseModel):
-    id: int
+    id: int | None = None
     agent: str = "Product Hunter Agent"
     status: str = "completed"
 
@@ -60,7 +52,7 @@ class ProductHunterResponse(BaseModel):
 
     analysis_package: dict[str, Any] = {}
 
-    created_at: datetime
+    created_at: datetime | None = None
 
     model_config = {
         "from_attributes": True,
