@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import JSZip from "jszip";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -85,6 +86,7 @@ export default function CampaignPackagePanel({
     null
   );
 
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [generatingFlow, setGeneratingFlow] = useState(false);
   const [openingId, setOpeningId] = useState<number | null>(null);
@@ -136,54 +138,101 @@ export default function CampaignPackagePanel({
     return labels[value] || value;
   }
 
-  function formatChannel(value: string) {
-    const labels: Record<string, string> = {
-      tiktok: "TikTok",
-      instagram: "Instagram",
-      youtube_shorts: "YouTube Shorts",
-      google: "Google",
-      facebook_ads: "Facebook Ads",
-      whatsapp: "WhatsApp",
-      pinterest: "Pinterest",
-    };
-
-    return labels[value] || value;
+  function getSafeFileName(value: string) {
+    return value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
   }
 
-  function formatBudget(value: string) {
-    const labels: Record<string, string> = {
-      organico: "Orgânico",
-      baixo_orcamento: "Baixo orçamento",
-      trafego_pago: "Tráfego pago",
-    };
+  const loadSettings = useCallback(async () => {
+    setLoadingSettings(true);
+    setErrorMessage("");
 
-    return labels[value] || value;
-  }
+    try {
+      const currentToken =
+        token || localStorage.getItem("affiliateai_token") || "";
 
-  function formatStyle(value: string) {
-    const labels: Record<string, string> = {
-      viral: "Viral",
-      direto: "Direto",
-      premium: "Premium",
-      popular: "Popular",
-      emocional: "Emocional",
-      agressivo: "Agressivo",
-      minimalista: "Minimalista",
-    };
+      if (!currentToken) {
+        return;
+      }
 
-    return labels[value] || value;
-  }
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
 
-  function formatObjective(value: string) {
-    const labels: Record<string, string> = {
-      vender: "Vender",
-      validar_produto: "Validar produto",
-      aquecer_audiencia: "Aquecer audiência",
-      capturar_lead: "Capturar lead",
-    };
+      if (!response.ok) {
+        const localNiche = localStorage.getItem("affiliateai_default_niche");
+        const localChannel = localStorage.getItem(
+          "affiliateai_default_channel"
+        );
+        const localCampaignStyle = localStorage.getItem(
+          "affiliateai_default_campaign_style"
+        );
+        const localBudgetStyle = localStorage.getItem(
+          "affiliateai_default_budget_style"
+        );
 
-    return labels[value] || value;
-  }
+        setForm((currentForm) => ({
+          ...currentForm,
+          niche: localNiche || currentForm.niche,
+          main_channel: localChannel || currentForm.main_channel,
+          campaign_style: localCampaignStyle || currentForm.campaign_style,
+          budget_style: localBudgetStyle || currentForm.budget_style,
+        }));
+
+        return;
+      }
+
+      const settings = await response.json();
+
+      setForm((currentForm) => ({
+        ...currentForm,
+        niche:
+          settings.default_niche ||
+          localStorage.getItem("affiliateai_default_niche") ||
+          currentForm.niche,
+        main_channel:
+          settings.default_channel ||
+          localStorage.getItem("affiliateai_default_channel") ||
+          currentForm.main_channel,
+        campaign_style:
+          settings.default_campaign_style ||
+          localStorage.getItem("affiliateai_default_campaign_style") ||
+          currentForm.campaign_style,
+        budget_style:
+          settings.default_budget_style ||
+          localStorage.getItem("affiliateai_default_budget_style") ||
+          currentForm.budget_style,
+      }));
+
+      setSuccessMessage("Preferências carregadas no Campaign Package.");
+    } catch {
+      const localNiche = localStorage.getItem("affiliateai_default_niche");
+      const localChannel = localStorage.getItem("affiliateai_default_channel");
+      const localCampaignStyle = localStorage.getItem(
+        "affiliateai_default_campaign_style"
+      );
+      const localBudgetStyle = localStorage.getItem(
+        "affiliateai_default_budget_style"
+      );
+
+      setForm((currentForm) => ({
+        ...currentForm,
+        niche: localNiche || currentForm.niche,
+        main_channel: localChannel || currentForm.main_channel,
+        campaign_style: localCampaignStyle || currentForm.campaign_style,
+        budget_style: localBudgetStyle || currentForm.budget_style,
+      }));
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, [token]);
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -225,6 +274,7 @@ export default function CampaignPackagePanel({
   }, [token]);
 
   useEffect(() => {
+    loadSettings();
     loadHistory();
 
     window.addEventListener("campaign-package-history-updated", loadHistory);
@@ -235,7 +285,7 @@ export default function CampaignPackagePanel({
         loadHistory
       );
     };
-  }, [loadHistory]);
+  }, [loadSettings, loadHistory]);
 
   async function runCampaignFlow() {
     setGeneratingFlow(true);
@@ -432,6 +482,46 @@ export default function CampaignPackagePanel({
     setSuccessMessage("PDF exportado.");
   }
 
+  async function exportZip() {
+    if (!selectedPackage) return;
+
+    const zip = new JSZip();
+
+    const safeProductName = getSafeFileName(selectedPackage.product_name);
+    const baseName = `affiliateai-package-${selectedPackage.id}-${safeProductName}`;
+
+    const summary = {
+      id: selectedPackage.id,
+      product_name: selectedPackage.product_name,
+      niche: selectedPackage.niche,
+      marketplace: selectedPackage.marketplace,
+      score: selectedPackage.score,
+      decision: selectedPackage.decision,
+      status: selectedPackage.status,
+      created_at: selectedPackage.created_at,
+    };
+
+    zip.file("campanha-completa.txt", selectedPackage.package_text);
+    zip.file("resumo.json", JSON.stringify(summary, null, 2));
+    zip.file(
+      "dados-tecnicos.json",
+      JSON.stringify(selectedPackage.source_data, null, 2)
+    );
+
+    const content = await zip.generateAsync({ type: "blob" });
+
+    const url = URL.createObjectURL(content);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${baseName}.zip`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+
+    setSuccessMessage("ZIP exportado com sucesso.");
+  }
+
   const selectedSource = useMemo(() => {
     if (!selectedPackage?.source_data) return "";
 
@@ -478,8 +568,8 @@ export default function CampaignPackagePanel({
               <h3>Gerar campanha rápida</h3>
             </div>
 
-            <button onClick={loadHistory} disabled={loadingHistory}>
-              {loadingHistory ? "Atualizando..." : "Atualizar histórico"}
+            <button onClick={loadSettings} disabled={loadingSettings}>
+              {loadingSettings ? "Carregando..." : "Usar preferências"}
             </button>
           </div>
 
@@ -615,8 +705,8 @@ export default function CampaignPackagePanel({
             <span>Fluxo rápido</span>
 
             <p>
-              O Campaign Flow usa o Catálogo de Produtos, escolhe uma oferta com
-              Auto Pick, monta a campanha e salva tudo direto no histórico de
+              O Campaign Flow usa suas preferências, escolhe uma oferta com Auto
+              Pick, monta a campanha e salva tudo direto no histórico de
               pacotes.
             </p>
           </div>
@@ -752,6 +842,8 @@ export default function CampaignPackagePanel({
             <button onClick={exportTxt}>Exportar TXT</button>
 
             <button onClick={exportPdf}>Exportar PDF</button>
+
+            <button onClick={exportZip}>Exportar ZIP</button>
           </div>
 
           <div className="agentMainText">
