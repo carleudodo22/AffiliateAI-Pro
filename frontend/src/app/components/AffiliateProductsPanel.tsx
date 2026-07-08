@@ -54,6 +54,7 @@ export default function AffiliateProductsPanel({
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -220,6 +221,70 @@ export default function AffiliateProductsPanel({
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function analyzeSelectedProduct() {
+    if (!selectedProduct) {
+      setErrorMessage("Selecione um produto antes de analisar.");
+      return;
+    }
+
+    setAnalyzing(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para analisar produtos.");
+      }
+
+      const payload = {
+        product_name: selectedProduct.product_name,
+        niche: selectedProduct.niche,
+        marketplace: selectedProduct.marketplace,
+        average_price: selectedProduct.average_price || 0,
+        commission_percent: selectedProduct.commission_percent || 0,
+        target_audience:
+          selectedProduct.notes ||
+          `pessoas interessadas no nicho de ${selectedProduct.niche}`,
+        product_url:
+          selectedProduct.affiliate_link ||
+          selectedProduct.product_url ||
+          null,
+      };
+
+      const response = await fetch(`${API_URL}/api/product-hunter/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      await response.json();
+
+      setSuccessMessage(
+        "Produto analisado no Product Hunter e salvo no histórico."
+      );
+
+      window.dispatchEvent(new Event("product-hunter-history-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao analisar produto no Product Hunter.");
+      }
+    } finally {
+      setAnalyzing(false);
     }
   }
 
@@ -494,6 +559,13 @@ export default function AffiliateProductsPanel({
             </button>
 
             <button onClick={resetForm}>Limpar formulário</button>
+
+            <button
+              onClick={analyzeSelectedProduct}
+              disabled={!selectedProduct || analyzing}
+            >
+              {analyzing ? "Analisando..." : "Analisar no Product Hunter"}
+            </button>
           </div>
         </div>
 
@@ -560,8 +632,9 @@ export default function AffiliateProductsPanel({
             <span>Produto selecionado</span>
             <h3>{selectedProduct.product_name}</h3>
             <p>
-              Esse produto já está salvo no banco e poderá ser usado futuramente
-              pelo Autopilot para escolher automaticamente uma campanha.
+              Esse produto já está salvo no banco e agora pode ser enviado para
+              o Product Hunter analisar score, oportunidade, riscos, público e
+              canais recomendados.
             </p>
           </div>
 
@@ -588,6 +661,10 @@ export default function AffiliateProductsPanel({
           </div>
 
           <div className="productsLinks">
+            <button onClick={analyzeSelectedProduct} disabled={analyzing}>
+              {analyzing ? "Analisando..." : "Analisar no Product Hunter"}
+            </button>
+
             {selectedProduct.product_url && (
               <a href={selectedProduct.product_url} target="_blank">
                 Abrir produto

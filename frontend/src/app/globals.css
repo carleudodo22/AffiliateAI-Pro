@@ -8183,3 +8183,25 @@ textarea:focus {
     width: 100%;
   }
 }
+
+.productsLinks button {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #00130a;
+  background: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.55);
+  font-weight: 900;
+}
+
+.productsLinks button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0, 255, 136, 0.14);
+}
+
+.productsLinks button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
