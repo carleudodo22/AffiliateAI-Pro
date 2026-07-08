@@ -46,6 +46,8 @@ class AutopilotRequest(BaseModel):
     budget_style: BudgetStyle = "organico"
     campaign_style: CampaignStyle = "viral"
 
+    use_auto_pick: bool = False
+
 
 class AutopilotResponse(BaseModel):
     id: int | None = None

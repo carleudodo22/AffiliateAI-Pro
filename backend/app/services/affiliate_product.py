@@ -51,6 +51,32 @@ class AffiliateProductService:
 
         return query.order_by(AffiliateProduct.created_at.desc()).all()
 
+    def get_best_product(
+        self,
+        db: Session,
+        current_user: User,
+    ) -> AffiliateProduct:
+        products = (
+            db.query(AffiliateProduct)
+            .filter(AffiliateProduct.user_id == current_user.id)
+            .filter(AffiliateProduct.is_active == True)
+            .all()
+        )
+
+        if not products:
+            raise HTTPException(
+                status_code=404,
+                detail="Nenhum produto ativo encontrado no catálogo.",
+            )
+
+        ranked_products = sorted(
+            products,
+            key=self._calculate_auto_pick_score,
+            reverse=True,
+        )
+
+        return ranked_products[0]
+
     def get_product(
         self,
         product_id: int,
@@ -145,3 +171,40 @@ class AffiliateProductService:
             "status": "deleted",
             "message": "Produto removido com sucesso.",
         }
+
+    def _calculate_auto_pick_score(
+        self,
+        product: AffiliateProduct,
+    ) -> float:
+        score = 0
+
+        if product.status == "afiliado":
+            score += 40
+
+        if product.affiliate_link:
+            score += 25
+
+        if product.product_url:
+            score += 8
+
+        if product.commission_percent:
+            score += product.commission_percent * 2.5
+
+        price = product.average_price or 0
+
+        if 30 <= price <= 200:
+            score += 20
+        elif 200 < price <= 500:
+            score += 12
+        elif 1 <= price < 30:
+            score += 8
+        elif price > 500:
+            score += 4
+
+        if product.marketplace in ["shopee", "mercado_livre", "amazon"]:
+            score += 8
+
+        if product.marketplace in ["hotmart", "kiwify", "monetizze"]:
+            score += 10
+
+        return score

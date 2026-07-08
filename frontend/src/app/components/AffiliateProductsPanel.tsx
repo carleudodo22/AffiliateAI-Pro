@@ -55,6 +55,7 @@ export default function AffiliateProductsPanel({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [autoPicking, setAutoPicking] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -75,6 +76,22 @@ export default function AffiliateProductsPanel({
 
     setErrorMessage("");
     setSuccessMessage("");
+  }
+
+  function fillFormWithProduct(product: AffiliateProduct) {
+    setSelectedProduct(product);
+
+    setForm({
+      product_name: product.product_name || "",
+      niche: product.niche || "",
+      marketplace: product.marketplace || "shopee",
+      product_url: product.product_url || "",
+      affiliate_link: product.affiliate_link || "",
+      average_price: String(product.average_price || 0),
+      commission_percent: String(product.commission_percent || 0),
+      status: product.status || "precisa_se_afiliar",
+      notes: product.notes || "",
+    });
   }
 
   function resetForm() {
@@ -153,6 +170,47 @@ export default function AffiliateProductsPanel({
       setProducts([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function autoPickBestProduct() {
+    setAutoPicking(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para usar o Auto Pick.");
+      }
+
+      const response = await fetch(`${API_URL}/api/affiliate-products/auto-pick`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: AffiliateProduct = await response.json();
+
+      fillFormWithProduct(data);
+
+      setSuccessMessage(
+        `Auto Pick escolheu: ${data.product_name}. Agora você pode analisar no Product Hunter.`
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao escolher melhor produto.");
+      }
+    } finally {
+      setAutoPicking(false);
     }
   }
 
@@ -342,19 +400,7 @@ export default function AffiliateProductsPanel({
   }
 
   function openProduct(product: AffiliateProduct) {
-    setSelectedProduct(product);
-
-    setForm({
-      product_name: product.product_name || "",
-      niche: product.niche || "",
-      marketplace: product.marketplace || "shopee",
-      product_url: product.product_url || "",
-      affiliate_link: product.affiliate_link || "",
-      average_price: String(product.average_price || 0),
-      commission_percent: String(product.commission_percent || 0),
-      status: product.status || "precisa_se_afiliar",
-      notes: product.notes || "",
-    });
+    fillFormWithProduct(product);
 
     setErrorMessage("");
     setSuccessMessage("Produto carregado para edição.");
@@ -390,6 +436,14 @@ export default function AffiliateProductsPanel({
             {affiliatedProducts.length} afiliados • {pendingProducts.length}{" "}
             pendentes
           </p>
+
+          <button
+            className="productsAutoPickButton"
+            onClick={autoPickBestProduct}
+            disabled={autoPicking || products.length === 0}
+          >
+            {autoPicking ? "Escolhendo..." : "Auto Pick"}
+          </button>
         </div>
       </div>
 
@@ -559,6 +613,13 @@ export default function AffiliateProductsPanel({
             </button>
 
             <button onClick={resetForm}>Limpar formulário</button>
+
+            <button
+              onClick={autoPickBestProduct}
+              disabled={autoPicking || products.length === 0}
+            >
+              {autoPicking ? "Escolhendo..." : "Auto Pick"}
+            </button>
 
             <button
               onClick={analyzeSelectedProduct}

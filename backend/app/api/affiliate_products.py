@@ -46,6 +46,17 @@ def list_affiliate_products(
     )
 
 
+@router.get("/auto-pick", response_model=AffiliateProductResponse)
+def auto_pick_affiliate_product(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.get_best_product(
+        db=db,
+        current_user=current_user,
+    )
+
+
 @router.get("/{product_id}", response_model=AffiliateProductResponse)
 def get_affiliate_product(
     product_id: int,

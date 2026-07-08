@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.models.affiliate_product import AffiliateProduct
 from app.models.autopilot_run import AutopilotRun
 from app.models.user import User
 from app.schemas.autopilot import AutopilotRequest, AutopilotResponse
@@ -12,20 +13,42 @@ class AutopilotService:
         db: Session,
         current_user: User,
     ) -> AutopilotResponse:
-        niche = data.niche.strip().lower()
+        requested_niche = data.niche.strip().lower()
+
+        if data.use_auto_pick:
+            selected = self._select_product_from_catalog(
+                db=db,
+                current_user=current_user,
+                niche=requested_niche,
+            )
+        else:
+            selected = self._select_product(requested_niche)
+
+        niche = selected.get("niche") or requested_niche
+
         target_audience = (
             data.target_audience
             or f"pessoas interessadas em soluções práticas no nicho de {niche}"
         )
 
-        selected = self._select_product(niche)
-        score = selected["score"]
+        score = int(selected["score"])
         decision = self._decision(score)
+
+        affiliate_link = selected.get("affiliate_link") or ""
+        product_url = selected.get("product_url") or ""
+        product_source = selected.get("source") or "internal_catalog"
+
+        link_instruction = (
+            "Usar o link de afiliado salvo no catálogo para direcionar o tráfego."
+            if affiliate_link
+            else "Criar ou colar o link de afiliado oficial antes de publicar."
+        )
 
         strategy = (
             f"Posicionar {selected['product']} como uma solução prática para {target_audience}. "
             f"No canal {data.main_channel}, usar uma campanha em estilo {data.campaign_style}, "
-            "com dor clara, demonstração visual, promessa simples e CTA direto."
+            "com dor clara, demonstração visual, promessa simples e CTA direto. "
+            f"{link_instruction}"
         )
 
         headline = f"Conheça o {selected['product']}"
@@ -57,20 +80,39 @@ class AutopilotService:
         checklist = [
             "Validar se o produto ainda está disponível.",
             "Confirmar comissão e regras da plataforma.",
-            "Criar link de afiliado oficial.",
+            "Confirmar se o link de afiliado está correto.",
             "Gerar imagem final no formato 9:16.",
             "Gerar vídeo curto com roteiro e narração.",
             "Publicar no canal escolhido.",
             "Acompanhar cliques, conversões e comentários.",
         ]
 
+        if data.use_auto_pick:
+            checklist.insert(
+                0,
+                "Produto escolhido automaticamente pelo Auto Pick do catálogo.",
+            )
+
+        if not affiliate_link:
+            checklist.insert(
+                1,
+                "Produto ainda precisa de link de afiliado antes da publicação.",
+            )
+
         campaign_package = {
+            "auto_pick": {
+                "enabled": data.use_auto_pick,
+                "source": product_source,
+                "catalog_product_id": selected.get("catalog_product_id"),
+            },
             "product": {
                 "name": selected["product"],
                 "marketplace": selected["marketplace"],
                 "average_price": selected["average_price"],
                 "commission_percent": selected["commission_percent"],
                 "reason": selected["reason"],
+                "affiliate_link": affiliate_link,
+                "product_url": product_url,
             },
             "market_analysis": {
                 "score": score,
@@ -153,6 +195,9 @@ class AutopilotService:
     def get_run_response(self, run: AutopilotRun) -> AutopilotResponse:
         return self._to_response(run)
 
+    def get_autopilot_response(self, run: AutopilotRun) -> AutopilotResponse:
+        return self._to_response(run)
+
     def _to_response(self, run: AutopilotRun) -> AutopilotResponse:
         return AutopilotResponse(
             id=run.id,
@@ -179,10 +224,119 @@ class AutopilotService:
             created_at=run.created_at,
         )
 
+    def _select_product_from_catalog(
+        self,
+        db: Session,
+        current_user: User,
+        niche: str,
+    ) -> dict:
+        base_query = (
+            db.query(AffiliateProduct)
+            .filter(AffiliateProduct.user_id == current_user.id)
+            .filter(AffiliateProduct.is_active == True)
+        )
+
+        same_niche_products = (
+            base_query
+            .filter(AffiliateProduct.niche == niche)
+            .all()
+        )
+
+        products = same_niche_products or base_query.all()
+
+        if not products:
+            return self._select_product(niche)
+
+        ranked_products = sorted(
+            products,
+            key=self._calculate_catalog_score,
+            reverse=True,
+        )
+
+        return self._affiliate_product_to_selected(ranked_products[0])
+
+    def _affiliate_product_to_selected(
+        self,
+        product: AffiliateProduct,
+    ) -> dict:
+        raw_score = self._calculate_catalog_score(product)
+        score = int(max(0, min(raw_score, 100)))
+
+        has_affiliate_link = bool(product.affiliate_link)
+        is_affiliated = product.status == "afiliado"
+
+        risk_level = "baixo" if has_affiliate_link and is_affiliated else "médio"
+
+        reason = (
+            "Produto escolhido automaticamente pelo Auto Pick do catálogo. "
+            "A pontuação considera status de afiliado, link salvo, comissão, preço, "
+            "marketplace e disponibilidade para campanha."
+        )
+
+        if not has_affiliate_link:
+            reason += " Atenção: o produto ainda precisa de link de afiliado antes de publicar."
+
+        return {
+            "product": product.product_name,
+            "niche": product.niche,
+            "marketplace": product.marketplace,
+            "average_price": product.average_price or 0,
+            "commission_percent": product.commission_percent or 0,
+            "demand_score": min(score + 8, 100),
+            "competition_score": 55,
+            "visual_strength": min(score + 5, 100),
+            "impulse_buy": min(score + 3, 100),
+            "risk_level": risk_level,
+            "score": score,
+            "reason": reason,
+            "affiliate_link": product.affiliate_link or "",
+            "product_url": product.product_url or "",
+            "catalog_product_id": product.id,
+            "source": "catalog_auto_pick",
+        }
+
+    def _calculate_catalog_score(
+        self,
+        product: AffiliateProduct,
+    ) -> float:
+        score = 0
+
+        if product.status == "afiliado":
+            score += 40
+
+        if product.affiliate_link:
+            score += 25
+
+        if product.product_url:
+            score += 8
+
+        if product.commission_percent:
+            score += product.commission_percent * 2.5
+
+        price = product.average_price or 0
+
+        if 30 <= price <= 200:
+            score += 20
+        elif 200 < price <= 500:
+            score += 12
+        elif 1 <= price < 30:
+            score += 8
+        elif price > 500:
+            score += 4
+
+        if product.marketplace in ["shopee", "mercado_livre", "amazon"]:
+            score += 8
+
+        if product.marketplace in ["hotmart", "kiwify", "monetizze"]:
+            score += 10
+
+        return score
+
     def _select_product(self, niche: str) -> dict:
         catalog = {
             "beleza": {
                 "product": "escova secadora",
+                "niche": "beleza",
                 "marketplace": "shopee",
                 "average_price": 119.90,
                 "commission_percent": 12,
@@ -193,9 +347,13 @@ class AutopilotService:
                 "risk_level": "médio",
                 "score": 81,
                 "reason": "Produto visual, forte para antes/depois e fácil de demonstrar em vídeo curto.",
+                "affiliate_link": "",
+                "product_url": "",
+                "source": "internal_catalog",
             },
             "fitness": {
                 "product": "mini elástico para treino",
+                "niche": "fitness",
                 "marketplace": "mercado_livre",
                 "average_price": 39.90,
                 "commission_percent": 12,
@@ -206,9 +364,13 @@ class AutopilotService:
                 "risk_level": "baixo",
                 "score": 79,
                 "reason": "Produto barato, visual e fácil de demonstrar com treino em casa.",
+                "affiliate_link": "",
+                "product_url": "",
+                "source": "internal_catalog",
             },
             "automotivo": {
                 "product": "aspirador portátil automotivo",
+                "niche": "automotivo",
                 "marketplace": "amazon",
                 "average_price": 99.90,
                 "commission_percent": 11,
@@ -219,9 +381,13 @@ class AutopilotService:
                 "risk_level": "médio",
                 "score": 76,
                 "reason": "Ótimo para vídeos de antes/depois na limpeza do carro.",
+                "affiliate_link": "",
+                "product_url": "",
+                "source": "internal_catalog",
             },
             "casa": {
                 "product": "mini processador elétrico",
+                "niche": "casa",
                 "marketplace": "shopee",
                 "average_price": 89.90,
                 "commission_percent": 12,
@@ -232,9 +398,13 @@ class AutopilotService:
                 "risk_level": "médio",
                 "score": 82,
                 "reason": "Produto visual, prático e forte para demonstração na cozinha.",
+                "affiliate_link": "",
+                "product_url": "",
+                "source": "internal_catalog",
             },
             "pet": {
                 "product": "escova removedora de pelos pet",
+                "niche": "pet",
                 "marketplace": "shopee",
                 "average_price": 49.90,
                 "commission_percent": 10,
@@ -245,6 +415,9 @@ class AutopilotService:
                 "risk_level": "baixo",
                 "score": 78,
                 "reason": "Produto com demonstração visual forte e dor clara para donos de pets.",
+                "affiliate_link": "",
+                "product_url": "",
+                "source": "internal_catalog",
             },
         }
 
@@ -252,6 +425,7 @@ class AutopilotService:
             niche,
             {
                 "product": f"produto tendência de {niche}",
+                "niche": niche,
                 "marketplace": "generic",
                 "average_price": 79.90,
                 "commission_percent": 10,
@@ -262,6 +436,9 @@ class AutopilotService:
                 "risk_level": "médio",
                 "score": 72,
                 "reason": "Produto gerado para validação inicial do nicho.",
+                "affiliate_link": "",
+                "product_url": "",
+                "source": "internal_catalog",
             },
         )
 
