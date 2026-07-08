@@ -68,3 +68,31 @@ def get_content_generation(
         )
 
     return service.get_content_response(content)
+
+
+@router.delete("/{content_id}")
+def delete_content_generation(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    content = (
+        db.query(ContentGeneration)
+        .filter(ContentGeneration.id == content_id)
+        .filter(ContentGeneration.user_id == current_user.id)
+        .first()
+    )
+
+    if content is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Conteúdo não encontrado.",
+        )
+
+    db.delete(content)
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "message": "Conteúdo removido com sucesso.",
+    }

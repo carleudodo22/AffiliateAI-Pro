@@ -15,7 +15,7 @@ from app.services.creative_image import CreativeImageService
 
 router = APIRouter(
     prefix="/api/creative-image",
-    tags=["Creative Image Agent"],
+    tags=["Creative Image"],
 )
 
 service = CreativeImageService()
@@ -49,7 +49,7 @@ def list_creative_image_history(
 
 
 @router.get("/{creative_id}", response_model=CreativeImageResponse)
-def get_creative_image_generation(
+def get_creative_image(
     creative_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -64,7 +64,35 @@ def get_creative_image_generation(
     if creative is None:
         raise HTTPException(
             status_code=404,
-            detail="Criativo não encontrado.",
+            detail="Criativo visual não encontrado.",
         )
 
     return service.get_creative_response(creative)
+
+
+@router.delete("/{creative_id}")
+def delete_creative_image(
+    creative_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    creative = (
+        db.query(CreativeImageGeneration)
+        .filter(CreativeImageGeneration.id == creative_id)
+        .filter(CreativeImageGeneration.user_id == current_user.id)
+        .first()
+    )
+
+    if creative is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Criativo visual não encontrado.",
+        )
+
+    db.delete(creative)
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "message": "Criativo visual removido com sucesso.",
+    }

@@ -68,3 +68,31 @@ def get_campaign_package(
         )
 
     return campaign_package
+
+
+@router.delete("/{package_id}")
+def delete_campaign_package(
+    package_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    campaign_package = (
+        db.query(CampaignPackageRun)
+        .filter(CampaignPackageRun.id == package_id)
+        .filter(CampaignPackageRun.user_id == current_user.id)
+        .first()
+    )
+
+    if campaign_package is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Pacote de campanha não encontrado.",
+        )
+
+    db.delete(campaign_package)
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "message": "Pacote de campanha removido com sucesso.",
+    }

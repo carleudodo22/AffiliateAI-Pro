@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AffiliateAutopilotPanel from "./components/AffiliateAutopilotPanel";
+import AffiliateProductsPanel from "./components/AffiliateProductsPanel";
 import CampaignPackagePanel from "./components/CampaignPackagePanel";
 import ContentGeneratorPanel from "./components/ContentGeneratorPanel";
 import CreativeImagePanel from "./components/CreativeImagePanel";
@@ -29,6 +30,7 @@ type AuthResponse = {
 
 type AppTab =
   | "dashboard"
+  | "products"
   | "autopilot"
   | "product_hunter"
   | "content_generator"
@@ -249,6 +251,10 @@ export default function Home() {
       return <DashboardOverview />;
     }
 
+    if (activeTab === "products") {
+      return <AffiliateProductsPanel token={token} />;
+    }
+
     if (activeTab === "autopilot") {
       return <AffiliateAutopilotPanel token={token} />;
     }
@@ -348,7 +354,7 @@ export default function Home() {
 
               <div className="authLandingStats">
                 <div>
-                  <strong>6</strong>
+                  <strong>7</strong>
                   <span>módulos principais</span>
                 </div>
 
@@ -359,21 +365,21 @@ export default function Home() {
 
                 <div>
                   <strong>1</strong>
-                  <span>pacote final</span>
+                  <span>catálogo de produtos</span>
                 </div>
               </div>
 
               <div className="authFeatureGrid">
                 <div>
                   <span>01</span>
-                  <strong>Autopilot</strong>
-                  <p>Cria estratégia, produto, copy, roteiro e checklist.</p>
+                  <strong>Catálogo</strong>
+                  <p>Salve produtos, links e oportunidades de afiliado.</p>
                 </div>
 
                 <div>
                   <span>02</span>
-                  <strong>Content Generator</strong>
-                  <p>Gera conteúdo pronto para TikTok, Reels, Shorts e WhatsApp.</p>
+                  <strong>Autopilot</strong>
+                  <p>Cria estratégia, produto, copy, roteiro e checklist.</p>
                 </div>
 
                 <div>
@@ -519,8 +525,8 @@ export default function Home() {
         </h1>
 
         <p className="subtitle">
-          Painel inteligente para caçar oportunidades, montar campanhas e criar
-          conteúdos para afiliados.
+          Painel inteligente para catalogar produtos, caçar oportunidades, montar
+          campanhas e criar conteúdos para afiliados.
         </p>
       </section>
 
@@ -531,6 +537,13 @@ export default function Home() {
             onClick={() => setActiveTab("dashboard")}
           >
             Dashboard
+          </button>
+
+          <button
+            className={activeTab === "products" ? "active" : ""}
+            onClick={() => setActiveTab("products")}
+          >
+            Produtos
           </button>
 
           <button

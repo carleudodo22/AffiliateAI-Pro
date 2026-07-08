@@ -15,7 +15,7 @@ from app.services.autopilot import AutopilotService
 
 router = APIRouter(
     prefix="/api/autopilot",
-    tags=["Affiliate Autopilot"],
+    tags=["Autopilot"],
 )
 
 service = AutopilotService()
@@ -43,7 +43,7 @@ def list_autopilot_history(
         db.query(AutopilotRun)
         .filter(AutopilotRun.user_id == current_user.id)
         .order_by(AutopilotRun.created_at.desc())
-        .limit(20)
+        .limit(30)
         .all()
     )
 
@@ -64,7 +64,35 @@ def get_autopilot_run(
     if run is None:
         raise HTTPException(
             status_code=404,
-            detail="Campanha não encontrada.",
+            detail="Histórico do Autopilot não encontrado.",
         )
 
-    return service.get_run_response(run)
+    return service.get_autopilot_response(run)
+
+
+@router.delete("/{run_id}")
+def delete_autopilot_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    run = (
+        db.query(AutopilotRun)
+        .filter(AutopilotRun.id == run_id)
+        .filter(AutopilotRun.user_id == current_user.id)
+        .first()
+    )
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Histórico do Autopilot não encontrado.",
+        )
+
+    db.delete(run)
+    db.commit()
+
+    return {
+        "status": "deleted",
+        "message": "Histórico do Autopilot removido com sucesso.",
+    }
