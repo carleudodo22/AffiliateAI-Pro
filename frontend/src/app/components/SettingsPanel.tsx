@@ -1,22 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type SettingsPanelProps = {
   token: string;
-  userName: string;
-  userEmail: string;
-};
-
-type UserPreferences = {
-  defaultNiche: string;
-  defaultChannel: string;
-  defaultCampaignStyle: string;
-  defaultBudgetStyle: string;
-  defaultMarketplace: string;
-  language: string;
+  userName?: string;
+  userEmail?: string;
 };
 
 type UserSettingsResponse = {
@@ -32,13 +23,51 @@ type UserSettingsResponse = {
   updated_at: string;
 };
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  defaultNiche: "beleza",
-  defaultChannel: "tiktok",
-  defaultCampaignStyle: "viral",
-  defaultBudgetStyle: "organico",
-  defaultMarketplace: "shopee",
+type WorkspaceProfileResponse = {
+  id: number;
+  user_id: number;
+
+  project_name: string;
+  brand_name: string;
+
+  default_target_audience: string;
+  default_cta: string;
+
+  tone: string;
+  visual_style: string;
+  language: string;
+
+  preferred_words: string[];
+  forbidden_words: string[];
+
+  notes: string | null;
+  extra_data: Record<string, unknown>;
+
+  created_at: string;
+  updated_at: string;
+};
+
+const DEFAULT_SETTINGS_FORM = {
+  default_niche: "beleza",
+  default_channel: "tiktok",
+  default_campaign_style: "viral",
+  default_budget_style: "organico",
+  default_marketplace: "shopee",
   language: "pt-BR",
+};
+
+const DEFAULT_WORKSPACE_FORM = {
+  project_name: "AffiliateAI Pro",
+  brand_name: "",
+  default_target_audience:
+    "pessoas interessadas em soluções práticas e ofertas úteis",
+  default_cta: "Clique no link e confira a oferta.",
+  tone: "direto",
+  visual_style: "premium_dark",
+  language: "pt-BR",
+  preferred_words: "estratégia, oferta, resultado, prático",
+  forbidden_words: "milagre, dinheiro fácil, garantido",
+  notes: "Gerar campanhas com aparência profissional, direta e sem promessas exageradas.",
 };
 
 export default function SettingsPanel({
@@ -46,133 +75,133 @@ export default function SettingsPanel({
   userName,
   userEmail,
 }: SettingsPanelProps) {
-  const [preferences, setPreferences] =
-    useState<UserPreferences>(DEFAULT_PREFERENCES);
+  const [settingsForm, setSettingsForm] = useState(DEFAULT_SETTINGS_FORM);
+  const [workspaceForm, setWorkspaceForm] = useState(DEFAULT_WORKSPACE_FORM);
 
-  const [savedMessage, setSavedMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [settingsData, setSettingsData] = useState<UserSettingsResponse | null>(
+    null
+  );
+
+  const [workspaceData, setWorkspaceData] =
+    useState<WorkspaceProfileResponse | null>(null);
+
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
-  useEffect(() => {
-    loadPreferencesFromApi();
-  }, [token]);
+  const [loadingWorkspace, setLoadingWorkspace] = useState(false);
+  const [savingWorkspace, setSavingWorkspace] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  function mapApiToPreferences(data: UserSettingsResponse): UserPreferences {
-    return {
-      defaultNiche: data.default_niche,
-      defaultChannel: data.default_channel,
-      defaultCampaignStyle: data.default_campaign_style,
-      defaultBudgetStyle: data.default_budget_style,
-      defaultMarketplace: data.default_marketplace,
-      language: data.language,
-    };
-  }
-
-  function mapPreferencesToApiPayload(data: UserPreferences) {
-    return {
-      default_niche: data.defaultNiche,
-      default_channel: data.defaultChannel,
-      default_campaign_style: data.defaultCampaignStyle,
-      default_budget_style: data.defaultBudgetStyle,
-      default_marketplace: data.defaultMarketplace,
-      language: data.language,
-    };
-  }
-
-  function saveLocalCache(data: UserPreferences) {
-    localStorage.setItem("affiliateai_preferences", JSON.stringify(data));
-  }
-
-  function loadLocalCache() {
-    const savedPreferences = localStorage.getItem("affiliateai_preferences");
-
-    if (!savedPreferences) {
-      setPreferences(DEFAULT_PREFERENCES);
-      return;
-    }
-
-    try {
-      const parsedPreferences = JSON.parse(savedPreferences) as UserPreferences;
-
-      setPreferences({
-        ...DEFAULT_PREFERENCES,
-        ...parsedPreferences,
-      });
-    } catch {
-      setPreferences(DEFAULT_PREFERENCES);
-    }
-  }
-
-  async function loadPreferencesFromApi() {
-    setLoadingSettings(true);
-    setErrorMessage("");
-    setSavedMessage("");
-
-    try {
-      const currentToken = getToken();
-
-      if (!currentToken) {
-        loadLocalCache();
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/api/user-settings/me`, {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        loadLocalCache();
-        return;
-      }
-
-      const data: UserSettingsResponse = await response.json();
-      const mappedPreferences = mapApiToPreferences(data);
-
-      setPreferences(mappedPreferences);
-      saveLocalCache(mappedPreferences);
-    } catch {
-      loadLocalCache();
-    } finally {
-      setLoadingSettings(false);
-    }
-  }
-
-  function updatePreference(key: keyof UserPreferences, value: string) {
-    setPreferences((currentPreferences) => ({
-      ...currentPreferences,
+  function updateSettingsForm(
+    key: keyof typeof DEFAULT_SETTINGS_FORM,
+    value: string
+  ) {
+    setSettingsForm((currentForm) => ({
+      ...currentForm,
       [key]: value,
     }));
 
-    setSavedMessage("");
     setErrorMessage("");
+    setSuccessMessage("");
   }
 
-  async function savePreferences() {
-    setSavingSettings(true);
-    setSavedMessage("");
+  function updateWorkspaceForm(
+    key: keyof typeof DEFAULT_WORKSPACE_FORM,
+    value: string
+  ) {
+    setWorkspaceForm((currentForm) => ({
+      ...currentForm,
+      [key]: value,
+    }));
+
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  function formatDate(value?: string | null) {
+    if (!value) return "Sem data";
+
+    try {
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return value;
+    }
+  }
+
+  function parseWords(value: string) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .filter((item, index, array) => array.indexOf(item) === index);
+  }
+
+  function wordsToText(value: string[] | undefined | null) {
+    if (!value || value.length === 0) return "";
+
+    return value.join(", ");
+  }
+
+  function syncSettingsToLocalStorage(data: UserSettingsResponse) {
+    localStorage.setItem("affiliateai_default_niche", data.default_niche);
+    localStorage.setItem("affiliateai_default_channel", data.default_channel);
+    localStorage.setItem(
+      "affiliateai_default_campaign_style",
+      data.default_campaign_style
+    );
+    localStorage.setItem(
+      "affiliateai_default_budget_style",
+      data.default_budget_style
+    );
+    localStorage.setItem(
+      "affiliateai_default_marketplace",
+      data.default_marketplace
+    );
+    localStorage.setItem("affiliateai_language", data.language);
+  }
+
+  function syncWorkspaceToLocalStorage(data: WorkspaceProfileResponse) {
+    localStorage.setItem("affiliateai_project_name", data.project_name);
+    localStorage.setItem("affiliateai_brand_name", data.brand_name);
+    localStorage.setItem(
+      "affiliateai_default_target_audience",
+      data.default_target_audience
+    );
+    localStorage.setItem("affiliateai_default_cta", data.default_cta);
+    localStorage.setItem("affiliateai_workspace_tone", data.tone);
+    localStorage.setItem("affiliateai_visual_style", data.visual_style);
+    localStorage.setItem(
+      "affiliateai_preferred_words",
+      wordsToText(data.preferred_words)
+    );
+    localStorage.setItem(
+      "affiliateai_forbidden_words",
+      wordsToText(data.forbidden_words)
+    );
+  }
+
+  const loadSettings = useCallback(async () => {
+    setLoadingSettings(true);
     setErrorMessage("");
 
     try {
-      const currentToken = getToken();
+      const currentToken =
+        token || localStorage.getItem("affiliateai_token") || "";
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para salvar configurações.");
+        throw new Error("Você precisa estar logado para carregar configurações.");
       }
 
       const response = await fetch(`${API_URL}/api/user-settings/me`, {
-        method: "PUT",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${currentToken}`,
         },
-        body: JSON.stringify(mapPreferencesToApiPayload(preferences)),
       });
 
       if (!response.ok) {
@@ -181,12 +210,132 @@ export default function SettingsPanel({
       }
 
       const data: UserSettingsResponse = await response.json();
-      const mappedPreferences = mapApiToPreferences(data);
 
-      setPreferences(mappedPreferences);
-      saveLocalCache(mappedPreferences);
+      setSettingsData(data);
 
-      setSavedMessage("Configurações salvas no banco com sucesso.");
+      setSettingsForm({
+        default_niche: data.default_niche || "beleza",
+        default_channel: data.default_channel || "tiktok",
+        default_campaign_style: data.default_campaign_style || "viral",
+        default_budget_style: data.default_budget_style || "organico",
+        default_marketplace: data.default_marketplace || "shopee",
+        language: data.language || "pt-BR",
+      });
+
+      syncSettingsToLocalStorage(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao carregar configurações.");
+      }
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, [token]);
+
+  const loadWorkspace = useCallback(async () => {
+    setLoadingWorkspace(true);
+    setErrorMessage("");
+
+    try {
+      const currentToken =
+        token || localStorage.getItem("affiliateai_token") || "";
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para carregar o Workspace.");
+      }
+
+      const response = await fetch(`${API_URL}/api/workspace-profile/me`, {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: WorkspaceProfileResponse = await response.json();
+
+      setWorkspaceData(data);
+
+      setWorkspaceForm({
+        project_name: data.project_name || "AffiliateAI Pro",
+        brand_name: data.brand_name || "",
+        default_target_audience:
+          data.default_target_audience ||
+          "pessoas interessadas em soluções práticas e ofertas úteis",
+        default_cta: data.default_cta || "Clique no link e confira a oferta.",
+        tone: data.tone || "direto",
+        visual_style: data.visual_style || "premium_dark",
+        language: data.language || "pt-BR",
+        preferred_words: wordsToText(data.preferred_words),
+        forbidden_words: wordsToText(data.forbidden_words),
+        notes: data.notes || "",
+      });
+
+      syncWorkspaceToLocalStorage(data);
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao carregar Workspace Profile.");
+      }
+    } finally {
+      setLoadingWorkspace(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadSettings();
+    loadWorkspace();
+  }, [loadSettings, loadWorkspace]);
+
+  async function saveSettings() {
+    setSavingSettings(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para salvar configurações.");
+      }
+
+      const payload = {
+        default_niche: settingsForm.default_niche,
+        default_channel: settingsForm.default_channel,
+        default_campaign_style: settingsForm.default_campaign_style,
+        default_budget_style: settingsForm.default_budget_style,
+        default_marketplace: settingsForm.default_marketplace,
+        language: settingsForm.language,
+      };
+
+      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: UserSettingsResponse = await response.json();
+
+      setSettingsData(data);
+      syncSettingsToLocalStorage(data);
+
+      setSuccessMessage("Preferências rápidas salvas com sucesso.");
+
+      window.dispatchEvent(new Event("user-settings-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -198,28 +347,39 @@ export default function SettingsPanel({
     }
   }
 
-  async function resetPreferences() {
-    setSavingSettings(true);
-    setSavedMessage("");
+  async function saveWorkspace() {
+    setSavingWorkspace(true);
     setErrorMessage("");
+    setSuccessMessage("");
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        localStorage.removeItem("affiliateai_preferences");
-        setPreferences(DEFAULT_PREFERENCES);
-        setSavedMessage("Configurações restauradas localmente.");
-        return;
+        throw new Error("Você precisa estar logado para salvar o Workspace.");
       }
 
-      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+      const payload = {
+        project_name: workspaceForm.project_name,
+        brand_name: workspaceForm.brand_name,
+        default_target_audience: workspaceForm.default_target_audience,
+        default_cta: workspaceForm.default_cta,
+        tone: workspaceForm.tone,
+        visual_style: workspaceForm.visual_style,
+        language: workspaceForm.language,
+        preferred_words: parseWords(workspaceForm.preferred_words),
+        forbidden_words: parseWords(workspaceForm.forbidden_words),
+        notes: workspaceForm.notes || null,
+        extra_data: {},
+      };
+
+      const response = await fetch(`${API_URL}/api/workspace-profile/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${currentToken}`,
         },
-        body: JSON.stringify(mapPreferencesToApiPayload(DEFAULT_PREFERENCES)),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -227,117 +387,86 @@ export default function SettingsPanel({
         throw new Error(text);
       }
 
-      const data: UserSettingsResponse = await response.json();
-      const mappedPreferences = mapApiToPreferences(data);
+      const data: WorkspaceProfileResponse = await response.json();
 
-      setPreferences(mappedPreferences);
-      saveLocalCache(mappedPreferences);
+      setWorkspaceData(data);
+      syncWorkspaceToLocalStorage(data);
 
-      setSavedMessage("Configurações restauradas para o padrão.");
+      setSuccessMessage("Workspace Profile salvo com sucesso.");
+
+      window.dispatchEvent(new Event("workspace-profile-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao restaurar configurações.");
+        setErrorMessage("Erro ao salvar Workspace Profile.");
       }
     } finally {
-      setSavingSettings(false);
+      setSavingWorkspace(false);
     }
   }
 
-  function copyTokenPreview() {
-    const preview = token ? `${token.slice(0, 18)}...` : "sem token";
-    navigator.clipboard.writeText(preview);
-    setSavedMessage("Prévia do token copiada.");
+  async function reloadEverything() {
+    await Promise.all([loadSettings(), loadWorkspace()]);
+    setSuccessMessage("Configurações recarregadas.");
   }
 
   return (
-    <section className="settingsPanel">
-      <div className="settingsHeader">
+    <section className="agentPanel settingsPanel">
+      <div className="agentHero">
         <div>
-          <span className="settingsEyebrow">Configurações</span>
+          <span className="agentEyebrow">Configurações</span>
 
-          <h2>Central do SaaS</h2>
+          <h2>Personalização do Workspace</h2>
 
           <p>
-            Ajuste preferências padrão do AffiliateAI Pro. Agora essas
-            configurações são salvas no banco por usuário e também mantidas em
-            cache local para alimentar os agentes.
+            Controle as preferências padrão do AffiliateAI Pro e defina a
+            identidade que os agentes vão usar para gerar campanhas mais
+            alinhadas com sua marca.
           </p>
         </div>
 
-        <div className="settingsStatus">
-          <span>Status da sessão</span>
-          <strong>{token ? "Autenticado" : "Sem token"}</strong>
-          <p>
-            {loadingSettings
-              ? "Carregando preferências..."
-              : "Preferências sincronizadas com o sistema."}
-          </p>
+        <div className="agentHeroStats">
+          <span>Usuário</span>
+          <strong>{userName || "Usuário"}</strong>
+          <p>{userEmail || "Conta local do AffiliateAI Pro"}</p>
         </div>
       </div>
 
-      <div className="settingsLayout">
-        <div className="settingsAccountCard">
-          <span>Conta conectada</span>
+      <div className="agentWorkspace">
+        <div className="agentFormCard">
+          <div className="agentSectionHeader">
+            <div>
+              <span>Preferências rápidas</span>
+              <h3>Padrões dos agentes</h3>
+            </div>
 
-          <div className="settingsAvatar">
-            {userName?.slice(0, 1).toUpperCase() || "U"}
+            <button
+              onClick={loadSettings}
+              disabled={loadingSettings || savingSettings}
+            >
+              {loadingSettings ? "Carregando..." : "Recarregar"}
+            </button>
           </div>
 
-          <h3>{userName}</h3>
-          <p>{userEmail}</p>
-
-          <div className="settingsAccountMeta">
-            <div>
-              <span>Plano atual</span>
-              <strong>Local Dev</strong>
-            </div>
-
-            <div>
-              <span>Workspace</span>
-              <strong>AffiliateAI Pro</strong>
-            </div>
-
-            <div>
-              <span>Fonte</span>
-              <strong>Banco + cache</strong>
-            </div>
-          </div>
-
-          <button onClick={copyTokenPreview}>Copiar prévia do token</button>
-        </div>
-
-        <div className="settingsMainCard">
-          <div className="settingsSectionHeader">
-            <div>
-              <span>Preferências padrão</span>
-              <h3>Configuração dos agentes</h3>
-            </div>
-
-            {savedMessage && <p>{savedMessage}</p>}
-          </div>
-
-          {errorMessage && <p className="errorMessage">{errorMessage}</p>}
-
-          <div className="settingsFormGrid">
+          <div className="agentFormGrid">
             <label>
               Nicho padrão
               <input
-                value={preferences.defaultNiche}
+                value={settingsForm.default_niche}
                 onChange={(event) =>
-                  updatePreference("defaultNiche", event.target.value)
+                  updateSettingsForm("default_niche", event.target.value)
                 }
-                placeholder="Ex: beleza"
+                placeholder="Ex: beleza, casa, pet..."
               />
             </label>
 
             <label>
-              Canal principal
+              Canal padrão
               <select
-                value={preferences.defaultChannel}
+                value={settingsForm.default_channel}
                 onChange={(event) =>
-                  updatePreference("defaultChannel", event.target.value)
+                  updateSettingsForm("default_channel", event.target.value)
                 }
               >
                 <option value="tiktok">TikTok</option>
@@ -353,9 +482,12 @@ export default function SettingsPanel({
             <label>
               Estilo de campanha
               <select
-                value={preferences.defaultCampaignStyle}
+                value={settingsForm.default_campaign_style}
                 onChange={(event) =>
-                  updatePreference("defaultCampaignStyle", event.target.value)
+                  updateSettingsForm(
+                    "default_campaign_style",
+                    event.target.value
+                  )
                 }
               >
                 <option value="viral">Viral</option>
@@ -364,15 +496,16 @@ export default function SettingsPanel({
                 <option value="popular">Popular</option>
                 <option value="emocional">Emocional</option>
                 <option value="agressivo">Agressivo</option>
+                <option value="minimalista">Minimalista</option>
               </select>
             </label>
 
             <label>
               Orçamento padrão
               <select
-                value={preferences.defaultBudgetStyle}
+                value={settingsForm.default_budget_style}
                 onChange={(event) =>
-                  updatePreference("defaultBudgetStyle", event.target.value)
+                  updateSettingsForm("default_budget_style", event.target.value)
                 }
               >
                 <option value="organico">Orgânico</option>
@@ -384,9 +517,9 @@ export default function SettingsPanel({
             <label>
               Marketplace padrão
               <select
-                value={preferences.defaultMarketplace}
+                value={settingsForm.default_marketplace}
                 onChange={(event) =>
-                  updatePreference("defaultMarketplace", event.target.value)
+                  updateSettingsForm("default_marketplace", event.target.value)
                 }
               >
                 <option value="shopee">Shopee</option>
@@ -401,64 +534,266 @@ export default function SettingsPanel({
             <label>
               Idioma
               <select
-                value={preferences.language}
+                value={settingsForm.language}
                 onChange={(event) =>
-                  updatePreference("language", event.target.value)
+                  updateSettingsForm("language", event.target.value)
                 }
               >
-                <option value="pt-BR">Português Brasil</option>
-                <option value="en-US">Inglês Estados Unidos</option>
+                <option value="pt-BR">Português BR</option>
+                <option value="en-US">Inglês</option>
                 <option value="es">Espanhol</option>
               </select>
             </label>
           </div>
 
-          <div className="settingsActions">
+          <div className="agentActions">
             <button
               className="primaryButton"
-              onClick={savePreferences}
-              disabled={savingSettings || loadingSettings}
+              onClick={saveSettings}
+              disabled={savingSettings}
             >
-              {savingSettings ? "Salvando..." : "Salvar configurações"}
+              {savingSettings ? "Salvando..." : "Salvar preferências"}
             </button>
 
-            <button
-              className="settingsSecondaryButton"
-              onClick={resetPreferences}
-              disabled={savingSettings || loadingSettings}
-            >
-              Restaurar padrão
-            </button>
+            <button onClick={reloadEverything}>Recarregar tudo</button>
+          </div>
+
+          <div className="agentInfoBox">
+            <span>Uso no sistema</span>
+
+            <p>
+              Essas preferências alimentam Autopilot, Product Hunter, Content
+              Generator, Creative Image e Campaign Package.
+            </p>
+          </div>
+        </div>
+
+        <div className="agentHistoryCard">
+          <div className="agentSectionHeader">
+            <div>
+              <span>Resumo</span>
+              <h3>Status da personalização</h3>
+            </div>
+          </div>
+
+          <div className="agentResultStats">
+            <div>
+              <span>Nicho</span>
+              <strong>{settingsForm.default_niche}</strong>
+            </div>
+
+            <div>
+              <span>Canal</span>
+              <strong>{settingsForm.default_channel}</strong>
+            </div>
+
+            <div>
+              <span>Marca</span>
+              <strong>{workspaceForm.brand_name || "Não definida"}</strong>
+            </div>
+
+            <div>
+              <span>Tom</span>
+              <strong>{workspaceForm.tone}</strong>
+            </div>
+
+            <div>
+              <span>Visual</span>
+              <strong>{workspaceForm.visual_style}</strong>
+            </div>
+
+            <div>
+              <span>CTA</span>
+              <strong>{workspaceForm.default_cta ? "Definido" : "Padrão"}</strong>
+            </div>
+          </div>
+
+          <div className="agentInfoBox">
+            <span>Última atualização</span>
+
+            <p>
+              Preferências: {formatDate(settingsData?.updated_at)} • Workspace:{" "}
+              {formatDate(workspaceData?.updated_at)}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="settingsGrid">
-        <div>
-          <span>Banco de dados</span>
-          <strong>Preferências por usuário</strong>
-          <p>
-            Cada conta pode ter seus próprios padrões salvos no backend do
-            AffiliateAI Pro.
-          </p>
+      <div className="agentResultCard">
+        <div className="agentResultHeader">
+          <div>
+            <span>Workspace Profile</span>
+            <h3>Identidade padrão da marca</h3>
+            <p>
+              Essa parte define como o AffiliateAI Pro deve escrever, vender e
+              montar campanhas para você.
+            </p>
+          </div>
+
+          <button onClick={loadWorkspace} disabled={loadingWorkspace}>
+            {loadingWorkspace ? "Carregando..." : "Recarregar Workspace"}
+          </button>
         </div>
 
-        <div>
-          <span>Cache local</span>
-          <strong>Agentes sincronizados</strong>
-          <p>
-            O sistema também atualiza o cache local para Autopilot, Product
-            Hunter, Content Generator e Creative Image.
-          </p>
+        <div className="agentFormGrid">
+          <label>
+            Nome do projeto
+            <input
+              value={workspaceForm.project_name}
+              onChange={(event) =>
+                updateWorkspaceForm("project_name", event.target.value)
+              }
+              placeholder="Ex: AffiliateAI Pro"
+            />
+          </label>
+
+          <label>
+            Nome da marca
+            <input
+              value={workspaceForm.brand_name}
+              onChange={(event) =>
+                updateWorkspaceForm("brand_name", event.target.value)
+              }
+              placeholder="Ex: Nexus Global"
+            />
+          </label>
+
+          <label>
+            Tom de voz
+            <select
+              value={workspaceForm.tone}
+              onChange={(event) =>
+                updateWorkspaceForm("tone", event.target.value)
+              }
+            >
+              <option value="direto">Direto</option>
+              <option value="premium">Premium</option>
+              <option value="viral">Viral</option>
+              <option value="emocional">Emocional</option>
+              <option value="agressivo">Agressivo</option>
+              <option value="educativo">Educativo</option>
+              <option value="minimalista">Minimalista</option>
+            </select>
+          </label>
+
+          <label>
+            Estilo visual
+            <select
+              value={workspaceForm.visual_style}
+              onChange={(event) =>
+                updateWorkspaceForm("visual_style", event.target.value)
+              }
+            >
+              <option value="premium_dark">Premium dark</option>
+              <option value="clean_light">Clean light</option>
+              <option value="neon">Neon</option>
+              <option value="luxury">Luxo</option>
+              <option value="popular">Popular</option>
+              <option value="automotivo">Automotivo</option>
+              <option value="beleza">Beleza</option>
+            </select>
+          </label>
+
+          <label>
+            Idioma do Workspace
+            <select
+              value={workspaceForm.language}
+              onChange={(event) =>
+                updateWorkspaceForm("language", event.target.value)
+              }
+            >
+              <option value="pt-BR">Português BR</option>
+              <option value="en-US">Inglês</option>
+              <option value="es">Espanhol</option>
+            </select>
+          </label>
+
+          <label>
+            CTA padrão
+            <input
+              value={workspaceForm.default_cta}
+              onChange={(event) =>
+                updateWorkspaceForm("default_cta", event.target.value)
+              }
+              placeholder="Ex: Clique no link e veja a oferta agora."
+            />
+          </label>
+
+          <label className="productsWide">
+            Público-alvo padrão
+            <textarea
+              value={workspaceForm.default_target_audience}
+              onChange={(event) =>
+                updateWorkspaceForm(
+                  "default_target_audience",
+                  event.target.value
+                )
+              }
+              placeholder="Ex: pessoas que querem ganhar dinheiro com afiliados..."
+            />
+          </label>
+
+          <label className="productsWide">
+            Palavras preferidas
+            <input
+              value={workspaceForm.preferred_words}
+              onChange={(event) =>
+                updateWorkspaceForm("preferred_words", event.target.value)
+              }
+              placeholder="Separe por vírgula. Ex: estratégia, oferta, resultado"
+            />
+          </label>
+
+          <label className="productsWide">
+            Palavras proibidas
+            <input
+              value={workspaceForm.forbidden_words}
+              onChange={(event) =>
+                updateWorkspaceForm("forbidden_words", event.target.value)
+              }
+              placeholder="Separe por vírgula. Ex: milagre, garantido"
+            />
+          </label>
+
+          <label className="productsWide">
+            Observações da marca
+            <textarea
+              value={workspaceForm.notes}
+              onChange={(event) =>
+                updateWorkspaceForm("notes", event.target.value)
+              }
+              placeholder="Ex: campanhas diretas, sem promessas exageradas..."
+            />
+          </label>
         </div>
 
-        <div>
-          <span>Próxima evolução</span>
-          <strong>Configurações avançadas</strong>
-          <p>
-            Depois podemos adicionar modelo de IA, tom padrão, limites de uso e
-            plano do usuário.
-          </p>
+        <div className="agentActions">
+          <button
+            className="primaryButton"
+            onClick={saveWorkspace}
+            disabled={savingWorkspace}
+          >
+            {savingWorkspace ? "Salvando..." : "Salvar Workspace Profile"}
+          </button>
+
+          <button onClick={reloadEverything}>Recarregar tudo</button>
+        </div>
+
+        {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+        {successMessage && <p className="successMessage">{successMessage}</p>}
+
+        <div className="agentMainText">
+          <span>Prévia da identidade</span>
+
+          <pre>{`Projeto: ${workspaceForm.project_name}
+Marca: ${workspaceForm.brand_name || "Não definida"}
+Tom: ${workspaceForm.tone}
+Visual: ${workspaceForm.visual_style}
+Público-alvo: ${workspaceForm.default_target_audience}
+CTA: ${workspaceForm.default_cta}
+Palavras preferidas: ${workspaceForm.preferred_words || "Nenhuma"}
+Palavras proibidas: ${workspaceForm.forbidden_words || "Nenhuma"}
+Observações: ${workspaceForm.notes || "Nenhuma"}`}</pre>
         </div>
       </div>
     </section>

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.product_analysis import ProductAnalysis
 from app.models.user import User
+from app.models.workspace_profile import WorkspaceProfile
 from app.schemas.product_hunter import (
     ProductHunterRequest,
     ProductHunterResponse,
@@ -19,12 +20,20 @@ class ProductHunterService:
         db: Session,
         current_user: User,
     ) -> ProductHunterResponse:
+        workspace = self._get_workspace_profile(
+            db=db,
+            current_user=current_user,
+        )
+
+        workspace_data = self._workspace_to_dict(workspace)
+
         clean_product_name = data.product_name.strip()
         clean_niche = data.niche.strip().lower()
         clean_marketplace = self._normalize_marketplace(data.marketplace)
 
         target_audience = (
             data.target_audience
+            or workspace_data["default_target_audience"]
             or f"pessoas interessadas em produtos do nicho de {clean_niche}"
         )
 
@@ -38,14 +47,15 @@ class ProductHunterService:
             product_url=data.product_url or "",
             traffic_channel=data.traffic_channel or "tiktok",
             competition_level=data.competition_level or "media",
+            workspace=workspace_data,
         )
 
         ai_result = ai_engine.generate_json(
             system_prompt=(
                 "Você é o Product Hunter Agent do AffiliateAI Pro. "
-                "Sua função é analisar produtos para afiliados, avaliando score, "
-                "decisão, público-alvo, oportunidades, riscos, ângulos de conteúdo "
-                "e canais recomendados."
+                "Sua função é analisar produtos para afiliados considerando score, decisão, "
+                "público-alvo, oportunidades, riscos, ângulos de conteúdo, canais recomendados "
+                "e o Workspace Profile do usuário."
             ),
             user_prompt=(
                 f"Produto: {clean_product_name}\n"
@@ -56,7 +66,13 @@ class ProductHunterService:
                 f"Público-alvo: {target_audience}\n"
                 f"URL do produto: {data.product_url or 'não informada'}\n"
                 f"Canal: {data.traffic_channel or 'tiktok'}\n"
-                f"Concorrência: {data.competition_level or 'media'}"
+                f"Concorrência: {data.competition_level or 'media'}\n"
+                f"Marca: {workspace_data['brand_name'] or 'não definida'}\n"
+                f"Tom de voz: {workspace_data['tone']}\n"
+                f"CTA padrão: {workspace_data['default_cta']}\n"
+                f"Palavras preferidas: {workspace_data['preferred_words']}\n"
+                f"Palavras proibidas: {workspace_data['forbidden_words']}\n"
+                f"Observações: {workspace_data['notes'] or 'nenhuma'}"
             ),
             fallback_data=fallback_package,
         )
@@ -69,6 +85,9 @@ class ProductHunterService:
             "mode": ai_result.get("mode", "safe_mock"),
         }
 
+        analysis_package["workspace_profile"] = workspace_data
+        analysis_package["personalization_enabled"] = True
+
         response_data = self._build_response_data(
             product_name=clean_product_name,
             niche=clean_niche,
@@ -77,6 +96,12 @@ class ProductHunterService:
             commission_percent=data.commission_percent,
             target_audience=target_audience,
             analysis_package=analysis_package,
+            workspace=workspace_data,
+        )
+
+        response_data = self._apply_forbidden_words_to_response(
+            response_data,
+            workspace_data,
         )
 
         saved_analysis = self._save_analysis_safely(
@@ -199,6 +224,56 @@ class ProductHunterService:
             created_at=self._safe_get(analysis, "created_at", datetime.utcnow()),
         )
 
+    def _get_workspace_profile(
+        self,
+        db: Session,
+        current_user: User,
+    ) -> WorkspaceProfile | None:
+        return (
+            db.query(WorkspaceProfile)
+            .filter(WorkspaceProfile.user_id == current_user.id)
+            .first()
+        )
+
+    def _workspace_to_dict(
+        self,
+        workspace: WorkspaceProfile | None,
+    ) -> dict[str, Any]:
+        if workspace is None:
+            return {
+                "id": None,
+                "project_name": "AffiliateAI Pro",
+                "brand_name": "",
+                "default_target_audience": (
+                    "pessoas interessadas em soluções práticas e ofertas úteis"
+                ),
+                "default_cta": "Clique no link e confira a oferta.",
+                "tone": "direto",
+                "visual_style": "premium_dark",
+                "language": "pt-BR",
+                "preferred_words": [],
+                "forbidden_words": [],
+                "notes": "",
+            }
+
+        return {
+            "id": workspace.id,
+            "project_name": workspace.project_name or "AffiliateAI Pro",
+            "brand_name": workspace.brand_name or "",
+            "default_target_audience": (
+                workspace.default_target_audience
+                or "pessoas interessadas em soluções práticas e ofertas úteis"
+            ),
+            "default_cta": workspace.default_cta
+            or "Clique no link e confira a oferta.",
+            "tone": workspace.tone or "direto",
+            "visual_style": workspace.visual_style or "premium_dark",
+            "language": workspace.language or "pt-BR",
+            "preferred_words": workspace.preferred_words or [],
+            "forbidden_words": workspace.forbidden_words or [],
+            "notes": workspace.notes or "",
+        }
+
     def _save_analysis_safely(
         self,
         data: dict[str, Any],
@@ -263,9 +338,23 @@ class ProductHunterService:
         commission_percent: float,
         target_audience: str,
         analysis_package: dict[str, Any],
+        workspace: dict[str, Any],
     ) -> dict[str, Any]:
         score = str(analysis_package.get("score", "--"))
         decision = str(analysis_package.get("decision", "não definido"))
+
+        summary = str(
+            analysis_package.get(
+                "summary",
+                self._build_summary(
+                    product_name=product_name,
+                    niche=niche,
+                    marketplace=marketplace,
+                    target_audience=target_audience,
+                    workspace=workspace,
+                ),
+            )
+        )
 
         return {
             "id": None,
@@ -278,43 +367,43 @@ class ProductHunterService:
             "commission_percent": commission_percent,
             "score": score,
             "decision": decision,
-            "summary": str(
-                analysis_package.get(
-                    "summary",
-                    "Produto analisado com base nos dados informados.",
-                )
-            ),
+            "summary": summary,
             "strengths": self._safe_list(
                 analysis_package.get(
                     "strengths",
-                    [
-                        "Produto com potencial de venda.",
-                        "Pode ser trabalhado em conteúdo curto.",
-                    ],
+                    self._build_strengths(
+                        product_name=product_name,
+                        niche=niche,
+                        workspace=workspace,
+                    ),
                 )
             ),
             "weaknesses": self._safe_list(
                 analysis_package.get(
                     "weaknesses",
                     [
-                        "Precisa validar concorrência e preço.",
+                        "É necessário validar preço, avaliações e disponibilidade.",
+                        "A concorrência pode exigir criativos mais fortes.",
                     ],
                 )
             ),
             "opportunities": self._safe_list(
                 analysis_package.get(
                     "opportunities",
-                    [
-                        "Criar vídeos demonstrando o principal benefício.",
-                        "Testar criativos com dor e solução.",
-                    ],
+                    self._build_opportunities(
+                        product_name=product_name,
+                        niche=niche,
+                        workspace=workspace,
+                    ),
                 )
             ),
             "risks": self._safe_list(
                 analysis_package.get(
                     "risks",
                     [
-                        "Oferta pode variar conforme marketplace e disponibilidade.",
+                        "Produto pode ter variação de preço ou estoque.",
+                        "Comissão pode mudar conforme marketplace.",
+                        "Criativo fraco pode diminuir conversão.",
                     ],
                 )
             ),
@@ -322,11 +411,12 @@ class ProductHunterService:
             "content_angles": self._safe_list(
                 analysis_package.get(
                     "content_angles",
-                    [
-                        f"Review rápido do {product_name}",
-                        f"Por que o {product_name} pode ajudar no nicho de {niche}",
-                        f"Achadinho útil para {target_audience}",
-                    ],
+                    self._build_content_angles(
+                        product_name=product_name,
+                        niche=niche,
+                        target_audience=target_audience,
+                        workspace=workspace,
+                    ),
                 )
             ),
             "recommended_channels": self._safe_list(
@@ -350,6 +440,7 @@ class ProductHunterService:
         product_url: str,
         traffic_channel: str,
         competition_level: str,
+        workspace: dict[str, Any],
     ) -> dict[str, Any]:
         score_number = self._calculate_score(
             average_price=average_price,
@@ -363,38 +454,42 @@ class ProductHunterService:
         return {
             "score": str(score_number),
             "decision": decision,
-            "summary": (
-                f"O produto {product_name} foi analisado para o nicho de {niche}. "
-                f"Ele pode funcionar bem para {target_audience}, principalmente com "
-                f"conteúdo direto em {traffic_channel}."
+            "summary": self._build_summary(
+                product_name=product_name,
+                niche=niche,
+                marketplace=marketplace,
+                target_audience=target_audience,
+                workspace=workspace,
             ),
-            "strengths": [
-                "Produto com boa possibilidade de demonstração em conteúdo curto.",
-                "Pode ser usado em campanhas de afiliados com CTA direto.",
-                "Nicho permite criação de conteúdo recorrente.",
-            ],
+            "strengths": self._build_strengths(
+                product_name=product_name,
+                niche=niche,
+                workspace=workspace,
+            ),
             "weaknesses": [
                 "É necessário validar preço, avaliações e disponibilidade.",
                 "A concorrência pode exigir criativos mais fortes.",
             ],
-            "opportunities": [
-                f"Criar vídeo mostrando o problema que o {product_name} resolve.",
-                "Testar headline com dor, curiosidade e benefício rápido.",
-                "Usar prova visual, antes/depois ou demonstração prática.",
-            ],
+            "opportunities": self._build_opportunities(
+                product_name=product_name,
+                niche=niche,
+                workspace=workspace,
+            ),
             "risks": [
                 "Produto pode ter variação de preço ou estoque.",
                 "Comissão pode mudar conforme marketplace.",
                 "Criativo fraco pode diminuir conversão.",
             ],
             "target_audience": target_audience,
-            "content_angles": [
-                f"Review honesto do {product_name}",
-                f"Vale a pena comprar {product_name}?",
-                f"Achadinho para quem está no nicho de {niche}",
-                f"Como usar {product_name} no dia a dia",
-            ],
+            "content_angles": self._build_content_angles(
+                product_name=product_name,
+                niche=niche,
+                target_audience=target_audience,
+                workspace=workspace,
+            ),
             "recommended_channels": self._recommended_channels(traffic_channel),
+            "workspace_profile": workspace,
+            "personalization_enabled": True,
             "input_data": {
                 "product_name": product_name,
                 "niche": niche,
@@ -407,6 +502,135 @@ class ProductHunterService:
                 "competition_level": competition_level,
             },
         }
+
+    def _build_summary(
+        self,
+        product_name: str,
+        niche: str,
+        marketplace: str,
+        target_audience: str,
+        workspace: dict[str, Any],
+    ) -> str:
+        brand_name = workspace["brand_name"]
+        tone = workspace["tone"]
+        cta = workspace["default_cta"]
+        preferred_words = self._preferred_words_text(workspace)
+
+        brand_part = f" para a marca {brand_name}" if brand_name else ""
+
+        if tone == "premium":
+            return (
+                f"O produto {product_name}{brand_part} tem potencial no nicho de {niche}, "
+                f"principalmente se for apresentado com comunicação limpa, benefício real "
+                f"e posicionamento de valor para {target_audience}. Marketplace: {marketplace}. "
+                f"CTA recomendado: {cta}. {preferred_words}"
+            )
+
+        if tone == "agressivo":
+            return (
+                f"O produto {product_name}{brand_part} pode funcionar bem no nicho de {niche} "
+                f"com abordagem direta, dor clara e demonstração rápida para {target_audience}. "
+                f"Marketplace: {marketplace}. CTA recomendado: {cta}. {preferred_words}"
+            )
+
+        if tone == "educativo":
+            return (
+                f"O produto {product_name}{brand_part} pode ser trabalhado com conteúdo explicativo, "
+                f"mostrando como ele funciona, para quem serve e quais problemas resolve no nicho de {niche}. "
+                f"Público: {target_audience}. CTA recomendado: {cta}. {preferred_words}"
+            )
+
+        return (
+            f"O produto {product_name}{brand_part} foi analisado para o nicho de {niche}. "
+            f"Ele pode funcionar bem para {target_audience}, principalmente com conteúdo direto, "
+            f"visual e simples. Marketplace: {marketplace}. CTA recomendado: {cta}. {preferred_words}"
+        )
+
+    def _build_strengths(
+        self,
+        product_name: str,
+        niche: str,
+        workspace: dict[str, Any],
+    ) -> list[str]:
+        tone = workspace["tone"]
+
+        strengths = [
+            "Produto com boa possibilidade de demonstração em conteúdo curto.",
+            "Pode ser usado em campanhas de afiliados com CTA direto.",
+            "Nicho permite criação de conteúdo recorrente.",
+        ]
+
+        if workspace["brand_name"]:
+            strengths.append(
+                f"Pode ser alinhado com a marca {workspace['brand_name']}."
+            )
+
+        if tone == "premium":
+            strengths.append("Pode ser posicionado com aparência mais profissional e limpa.")
+
+        if tone == "educativo":
+            strengths.append("Permite criar conteúdo explicativo e comparativo.")
+
+        if tone == "agressivo":
+            strengths.append("Permite comunicação forte com dor, solução e oferta.")
+
+        return strengths
+
+    def _build_opportunities(
+        self,
+        product_name: str,
+        niche: str,
+        workspace: dict[str, Any],
+    ) -> list[str]:
+        cta = workspace["default_cta"]
+
+        return [
+            f"Criar vídeo mostrando o problema que o {product_name} resolve.",
+            "Testar headline com dor, curiosidade e benefício rápido.",
+            "Usar prova visual, antes/depois ou demonstração prática.",
+            f"Finalizar os criativos com o CTA padrão: {cta}",
+            f"Gerar conteúdo recorrente no nicho de {niche}.",
+        ]
+
+    def _build_content_angles(
+        self,
+        product_name: str,
+        niche: str,
+        target_audience: str,
+        workspace: dict[str, Any],
+    ) -> list[str]:
+        tone = workspace["tone"]
+
+        if tone == "educativo":
+            return [
+                f"Como o {product_name} funciona na prática",
+                f"Para quem o {product_name} faz sentido",
+                f"3 benefícios do {product_name} no nicho de {niche}",
+                f"O que analisar antes de comprar {product_name}",
+            ]
+
+        if tone == "premium":
+            return [
+                f"Por que o {product_name} pode ser uma escolha mais inteligente",
+                f"Review limpo e direto do {product_name}",
+                f"Benefícios reais do {product_name}",
+                f"Como o {product_name} pode ajudar {target_audience}",
+            ]
+
+        if tone == "agressivo":
+            return [
+                f"Você ainda não testou o {product_name}?",
+                f"O erro de ignorar esse tipo de produto no nicho de {niche}",
+                f"Veja o que o {product_name} pode resolver",
+                f"Oferta direta para quem quer praticidade",
+            ]
+
+        return [
+            f"Review honesto do {product_name}",
+            f"Vale a pena comprar {product_name}?",
+            f"Achadinho para quem está no nicho de {niche}",
+            f"Como usar {product_name} no dia a dia",
+        ]
 
     def _calculate_score(
         self,
@@ -504,6 +728,69 @@ class ProductHunterService:
         }
 
         return aliases.get(normalized, normalized or "outro")
+
+    def _preferred_words_text(
+        self,
+        workspace: dict[str, Any],
+    ) -> str:
+        preferred_words = workspace.get("preferred_words", [])
+
+        if not preferred_words:
+            return ""
+
+        words = ", ".join([str(word) for word in preferred_words])
+
+        return f"Priorizar ideias como: {words}."
+
+    def _apply_forbidden_words_to_response(
+        self,
+        data: dict[str, Any],
+        workspace: dict[str, Any],
+    ) -> dict[str, Any]:
+        data["summary"] = self._apply_forbidden_words(data["summary"], workspace)
+        data["strengths"] = [
+            self._apply_forbidden_words(item, workspace)
+            for item in data["strengths"]
+        ]
+        data["weaknesses"] = [
+            self._apply_forbidden_words(item, workspace)
+            for item in data["weaknesses"]
+        ]
+        data["opportunities"] = [
+            self._apply_forbidden_words(item, workspace)
+            for item in data["opportunities"]
+        ]
+        data["risks"] = [
+            self._apply_forbidden_words(item, workspace)
+            for item in data["risks"]
+        ]
+        data["content_angles"] = [
+            self._apply_forbidden_words(item, workspace)
+            for item in data["content_angles"]
+        ]
+
+        return data
+
+    def _apply_forbidden_words(
+        self,
+        text: str,
+        workspace: dict[str, Any],
+    ) -> str:
+        forbidden_words = workspace.get("forbidden_words", [])
+
+        clean_text = text
+
+        for word in forbidden_words:
+            word_text = str(word).strip()
+
+            if not word_text:
+                continue
+
+            clean_text = clean_text.replace(word_text, "[termo removido]")
+            clean_text = clean_text.replace(word_text.capitalize(), "[termo removido]")
+            clean_text = clean_text.replace(word_text.upper(), "[termo removido]")
+
+        return clean_text
 
     def _safe_get(self, obj, field: str, fallback=None):
         value = getattr(obj, field, fallback)

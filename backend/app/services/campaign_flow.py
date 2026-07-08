@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.affiliate_product import AffiliateProduct
 from app.models.campaign_package import CampaignPackageRun
 from app.models.user import User
+from app.models.workspace_profile import WorkspaceProfile
 from app.schemas.campaign_flow import CampaignFlowRequest, CampaignFlowResponse
 
 
@@ -17,6 +18,13 @@ class CampaignFlowService:
         db: Session,
         current_user: User,
     ) -> CampaignFlowResponse:
+        workspace = self._get_workspace_profile(
+            db=db,
+            current_user=current_user,
+        )
+
+        workspace_data = self._workspace_to_dict(workspace)
+
         product = self._choose_product(
             data=data,
             db=db,
@@ -29,6 +37,7 @@ class CampaignFlowService:
 
         target_audience = (
             data.target_audience
+            or workspace_data["default_target_audience"]
             or f"pessoas interessadas em soluções práticas no nicho de {niche}"
         )
 
@@ -39,18 +48,21 @@ class CampaignFlowService:
         headline = self._build_headline(
             product_name=product_name,
             campaign_style=data.campaign_style,
+            workspace=workspace_data,
         )
 
         short_copy = self._build_short_copy(
             product_name=product_name,
             niche=niche,
             target_audience=target_audience,
+            workspace=workspace_data,
         )
 
         video_script = self._build_video_script(
             product_name=product_name,
             niche=niche,
             main_channel=data.main_channel,
+            workspace=workspace_data,
         )
 
         image_brief = self._build_image_brief(
@@ -58,24 +70,40 @@ class CampaignFlowService:
             niche=niche,
             target_audience=target_audience,
             campaign_style=data.campaign_style,
+            workspace=workspace_data,
         )
 
         voiceover_script = self._build_voiceover_script(
             product_name=product_name,
             niche=niche,
             target_audience=target_audience,
+            workspace=workspace_data,
         )
 
-        checklist = self._build_checklist(product)
+        checklist = self._build_checklist(
+            product=product,
+            workspace=workspace_data,
+        )
+
+        headline = self._apply_forbidden_words(headline, workspace_data)
+        short_copy = self._apply_forbidden_words(short_copy, workspace_data)
+        video_script = self._apply_forbidden_words(video_script, workspace_data)
+        image_brief = self._apply_forbidden_words(image_brief, workspace_data)
+        voiceover_script = self._apply_forbidden_words(
+            voiceover_script,
+            workspace_data,
+        )
 
         source_data = {
             "flow": {
                 "name": "Campaign Flow",
-                "version": "1.0",
+                "version": "1.1",
                 "generated_at": datetime.utcnow().isoformat(),
                 "use_auto_pick": data.use_auto_pick,
                 "product_id_requested": data.product_id,
+                "personalization_enabled": True,
             },
+            "workspace_profile": workspace_data,
             "product": product,
             "campaign": {
                 "objective": data.objective,
@@ -83,6 +111,10 @@ class CampaignFlowService:
                 "budget_style": data.budget_style,
                 "campaign_style": data.campaign_style,
                 "target_audience": target_audience,
+                "brand_name": workspace_data["brand_name"],
+                "tone": workspace_data["tone"],
+                "visual_style": workspace_data["visual_style"],
+                "default_cta": workspace_data["default_cta"],
             },
             "analysis": {
                 "score": score,
@@ -95,31 +127,21 @@ class CampaignFlowService:
                 "short_copy": short_copy,
                 "video_script": video_script,
                 "voiceover_script": voiceover_script,
-                "hashtags": [
-                    "#afiliados",
-                    "#marketingdigital",
-                    "#achadinhos",
-                    "#oferta",
-                    f"#{niche.replace(' ', '')}",
-                    f"#{product_name.replace(' ', '')}",
-                ],
-                "ctas": [
-                    "Clique no link e confira.",
-                    "Veja a oferta disponível.",
-                    "Garanta o seu enquanto está disponível.",
-                ],
+                "hashtags": self._build_hashtags(
+                    niche=niche,
+                    product_name=product_name,
+                    workspace=workspace_data,
+                ),
+                "ctas": self._build_ctas(workspace_data),
             },
             "creative": {
                 "image_brief": image_brief,
-                "video_direction": "Vídeo vertical 9:16 com cortes rápidos, texto na tela e CTA claro.",
-                "sound_direction": "Trilha moderna, ritmo rápido e estilo Reels/TikTok.",
+                "video_direction": self._build_video_direction(workspace_data),
+                "sound_direction": self._build_sound_direction(workspace_data),
             },
             "publishing_plan": {
                 "main_channel": data.main_channel,
-                "posting_angle": (
-                    "Começar com uma dor ou curiosidade, mostrar o produto como solução "
-                    "e finalizar com CTA direto para o link."
-                ),
+                "posting_angle": self._build_posting_angle(workspace_data),
                 "test_variations": [
                     "Variação 1: foco na dor.",
                     "Variação 2: foco em demonstração.",
@@ -144,6 +166,12 @@ class CampaignFlowService:
             image_brief=image_brief,
             voiceover_script=voiceover_script,
             checklist=checklist,
+            workspace=workspace_data,
+        )
+
+        package_text = self._apply_forbidden_words(
+            package_text,
+            workspace_data,
         )
 
         saved_package = CampaignPackageRun(
@@ -164,7 +192,7 @@ class CampaignFlowService:
 
         return CampaignFlowResponse(
             status="completed",
-            message="Campaign Flow gerado e salvo no Campaign Package.",
+            message="Campaign Flow personalizado gerado e salvo no Campaign Package.",
             saved_package_id=saved_package.id,
             product={
                 "id": product["id"],
@@ -188,6 +216,56 @@ class CampaignFlowService:
             source_data=source_data,
             created_at=saved_package.created_at,
         )
+
+    def _get_workspace_profile(
+        self,
+        db: Session,
+        current_user: User,
+    ) -> WorkspaceProfile | None:
+        return (
+            db.query(WorkspaceProfile)
+            .filter(WorkspaceProfile.user_id == current_user.id)
+            .first()
+        )
+
+    def _workspace_to_dict(
+        self,
+        workspace: WorkspaceProfile | None,
+    ) -> dict[str, Any]:
+        if workspace is None:
+            return {
+                "id": None,
+                "project_name": "AffiliateAI Pro",
+                "brand_name": "",
+                "default_target_audience": (
+                    "pessoas interessadas em soluções práticas e ofertas úteis"
+                ),
+                "default_cta": "Clique no link e confira a oferta.",
+                "tone": "direto",
+                "visual_style": "premium_dark",
+                "language": "pt-BR",
+                "preferred_words": [],
+                "forbidden_words": [],
+                "notes": "",
+            }
+
+        return {
+            "id": workspace.id,
+            "project_name": workspace.project_name or "AffiliateAI Pro",
+            "brand_name": workspace.brand_name or "",
+            "default_target_audience": (
+                workspace.default_target_audience
+                or "pessoas interessadas em soluções práticas e ofertas úteis"
+            ),
+            "default_cta": workspace.default_cta
+            or "Clique no link e confira a oferta.",
+            "tone": workspace.tone or "direto",
+            "visual_style": workspace.visual_style or "premium_dark",
+            "language": workspace.language or "pt-BR",
+            "preferred_words": workspace.preferred_words or [],
+            "forbidden_words": workspace.forbidden_words or [],
+            "notes": workspace.notes or "",
+        }
 
     def _choose_product(
         self,
@@ -386,28 +464,73 @@ class CampaignFlowService:
         self,
         product_name: str,
         campaign_style: str,
+        workspace: dict[str, Any],
     ) -> str:
-        if campaign_style == "agressivo":
-            return f"Você precisa conhecer o {product_name}"
+        brand_name = workspace["brand_name"]
+        tone = workspace["tone"]
 
-        if campaign_style == "emocional":
-            return f"O {product_name} pode facilitar sua rotina"
+        brand_prefix = f"{brand_name}: " if brand_name else ""
 
-        if campaign_style == "premium":
-            return f"{product_name}: uma escolha mais inteligente"
+        if tone == "premium":
+            return f"{brand_prefix}{product_name} para quem busca uma escolha mais inteligente"
 
-        return f"Conheça o {product_name}"
+        if tone == "emocional":
+            return f"{brand_prefix}O {product_name} pode facilitar sua rotina"
+
+        if tone == "agressivo":
+            return f"{brand_prefix}Você precisa conhecer o {product_name}"
+
+        if tone == "educativo":
+            return f"{brand_prefix}Entenda como o {product_name} pode ajudar"
+
+        if campaign_style == "viral":
+            return f"{brand_prefix}Esse {product_name} está chamando atenção"
+
+        return f"{brand_prefix}Conheça o {product_name}"
 
     def _build_short_copy(
         self,
         product_name: str,
         niche: str,
         target_audience: str,
+        workspace: dict[str, Any],
     ) -> str:
+        cta = workspace["default_cta"]
+        tone = workspace["tone"]
+        preferred_words = self._preferred_words_text(workspace)
+
+        if tone == "premium":
+            return (
+                f"Para {target_audience}, o {product_name} pode ser uma opção mais prática "
+                f"e bem posicionada no nicho de {niche}. Use uma comunicação limpa, valorize "
+                f"benefício real e finalize com clareza: {cta} {preferred_words}"
+            )
+
+        if tone == "agressivo":
+            return (
+                f"Se você está no nicho de {niche} e ainda não testou o {product_name}, "
+                f"pode estar deixando uma boa oportunidade passar. Mostre a dor, apresente "
+                f"a solução e finalize direto: {cta} {preferred_words}"
+            )
+
+        if tone == "emocional":
+            return (
+                f"O {product_name} pode ajudar {target_audience} a ter mais praticidade "
+                f"no dia a dia. Mostre uma situação real, conecte com a dor do público "
+                f"e finalize com um convite simples: {cta} {preferred_words}"
+            )
+
+        if tone == "educativo":
+            return (
+                f"Explique de forma simples como o {product_name} funciona, por que ele pode "
+                f"ser útil no nicho de {niche} e quais benefícios fazem sentido para "
+                f"{target_audience}. Feche com CTA: {cta} {preferred_words}"
+            )
+
         return (
             f"Se você faz parte de {target_audience} e procura algo prático no nicho de {niche}, "
             f"o {product_name} pode ser uma ótima opção. Mostre o benefício de forma simples, "
-            "visual e direta, sempre com CTA para conferir a oferta."
+            f"visual e direta. {cta} {preferred_words}"
         )
 
     def _build_video_script(
@@ -415,13 +538,32 @@ class CampaignFlowService:
         product_name: str,
         niche: str,
         main_channel: str,
+        workspace: dict[str, Any],
     ) -> str:
+        cta = workspace["default_cta"]
+        tone = workspace["tone"]
+
+        if tone == "educativo":
+            return (
+                f"CENA 1: Explique uma dúvida comum no nicho de {niche}. "
+                f"CENA 2: Mostre o {product_name} e explique para que serve. "
+                "CENA 3: Liste 3 benefícios práticos com texto na tela. "
+                f"CENA 4: Finalize com: '{cta}'"
+            )
+
+        if tone == "agressivo":
+            return (
+                f"CENA 1: Abra com uma frase forte sobre uma dor do nicho de {niche}. "
+                f"CENA 2: Mostre o {product_name} como solução direta. "
+                "CENA 3: Mostre o produto em uso com cortes rápidos. "
+                f"CENA 4: Finalize com urgência leve: '{cta}'"
+            )
+
         return (
             f"CENA 1: Mostre uma dor comum no nicho de {niche}. "
             f"CENA 2: Apresente o {product_name} como solução prática. "
             "CENA 3: Mostre 3 benefícios rápidos na tela. "
-            f"CENA 4: Finalize com CTA para o público do canal {main_channel}: "
-            "'Clique no link e confira a oferta'."
+            f"CENA 4: Finalize no canal {main_channel} com CTA: '{cta}'"
         )
 
     def _build_image_brief(
@@ -430,11 +572,38 @@ class CampaignFlowService:
         niche: str,
         target_audience: str,
         campaign_style: str,
+        workspace: dict[str, Any],
     ) -> str:
+        visual_style = workspace["visual_style"]
+        brand_name = workspace["brand_name"]
+        cta = workspace["default_cta"]
+
+        brand_instruction = (
+            f"Incluir referência visual discreta da marca {brand_name}. "
+            if brand_name
+            else ""
+        )
+
+        style_map = {
+            "premium_dark": "fundo escuro premium, alto contraste, detalhes em verde neon",
+            "clean_light": "fundo claro, limpo, minimalista e moderno",
+            "neon": "visual futurista com neon, alto contraste e energia",
+            "luxury": "visual luxuoso, sofisticado, com sensação de produto premium",
+            "popular": "visual chamativo, acessível, com foco em oferta e benefício",
+            "automotivo": "visual automotivo, forte, escuro, com textura mecânica",
+            "beleza": "visual elegante, limpo, com sensação de cuidado e transformação",
+        }
+
+        visual_instruction = style_map.get(
+            visual_style,
+            "visual moderno, alto contraste e produto em destaque",
+        )
+
         return (
-            f"Imagem publicitária vertical 9:16 para afiliado. Produto em destaque: {product_name}. "
-            f"Nicho: {niche}. Público: {target_audience}. Estilo: {campaign_style}. "
-            "Fundo moderno, alto contraste, visual premium, texto curto e CTA forte."
+            f"Imagem publicitária vertical 9:16 para afiliado. Produto: {product_name}. "
+            f"Nicho: {niche}. Público: {target_audience}. Estilo da campanha: {campaign_style}. "
+            f"Direção visual: {visual_instruction}. {brand_instruction}"
+            f"Produto em destaque, texto curto, CTA visual: '{cta}'."
         )
 
     def _build_voiceover_script(
@@ -442,22 +611,47 @@ class CampaignFlowService:
         product_name: str,
         niche: str,
         target_audience: str,
+        workspace: dict[str, Any],
     ) -> str:
+        cta = workspace["default_cta"]
+        tone = workspace["tone"]
+
+        if tone == "premium":
+            return (
+                f"Para quem procura uma solução mais prática no nicho de {niche}, "
+                f"o {product_name} pode ser uma escolha inteligente. "
+                f"Veja os detalhes e compare a oferta. {cta}"
+            )
+
+        if tone == "agressivo":
+            return (
+                f"Muita gente no nicho de {niche} ainda tenta resolver isso do jeito difícil. "
+                f"O {product_name} pode simplificar esse processo. {cta}"
+            )
+
+        if tone == "emocional":
+            return (
+                f"Às vezes, uma solução simples já muda a rotina. Para {target_audience}, "
+                f"o {product_name} pode trazer mais praticidade no dia a dia. {cta}"
+            )
+
         return (
             f"Você sabia que muita gente no nicho de {niche} ainda tenta resolver isso do jeito difícil? "
-            f"Para {target_audience}, o {product_name} pode trazer mais praticidade no dia a dia. "
-            "Confira a oferta enquanto estiver disponível."
+            f"Para {target_audience}, o {product_name} pode trazer mais praticidade. {cta}"
         )
 
     def _build_checklist(
         self,
         product: dict[str, Any],
+        workspace: dict[str, Any],
     ) -> list[str]:
         checklist = [
             "Validar se o produto ainda está disponível.",
             "Conferir preço, avaliações e prazo de entrega.",
             "Confirmar comissão e regras da plataforma.",
-            "Gerar imagem final no formato 9:16.",
+            "Aplicar o tom de voz definido no Workspace Profile.",
+            "Conferir se nenhuma palavra proibida foi usada.",
+            "Gerar imagem final respeitando o estilo visual do Workspace.",
             "Gerar vídeo curto com roteiro e narração.",
             "Publicar no canal escolhido.",
             "Acompanhar cliques, conversões e comentários.",
@@ -475,7 +669,154 @@ class CampaignFlowService:
                 "Adicionar link de afiliado antes de publicar a campanha.",
             )
 
+        if workspace["brand_name"]:
+            checklist.append(
+                f"Conferir se a campanha está alinhada com a marca {workspace['brand_name']}.",
+            )
+
         return checklist
+
+    def _build_ctas(
+        self,
+        workspace: dict[str, Any],
+    ) -> list[str]:
+        default_cta = workspace["default_cta"]
+
+        ctas = [
+            default_cta,
+            "Veja a oferta disponível.",
+            "Confira os detalhes antes que mude.",
+        ]
+
+        clean_ctas: list[str] = []
+
+        for cta in ctas:
+            if cta not in clean_ctas:
+                clean_ctas.append(cta)
+
+        return clean_ctas
+
+    def _build_hashtags(
+        self,
+        niche: str,
+        product_name: str,
+        workspace: dict[str, Any],
+    ) -> list[str]:
+        brand_name = workspace["brand_name"]
+
+        hashtags = [
+            "#afiliados",
+            "#marketingdigital",
+            "#achadinhos",
+            "#oferta",
+            f"#{niche.replace(' ', '')}",
+            f"#{product_name.replace(' ', '')}",
+        ]
+
+        if brand_name:
+            hashtags.append(f"#{brand_name.replace(' ', '')}")
+
+        return hashtags
+
+    def _build_video_direction(
+        self,
+        workspace: dict[str, Any],
+    ) -> str:
+        visual_style = workspace["visual_style"]
+
+        if visual_style == "premium_dark":
+            return "Vídeo vertical 9:16 com fundo escuro, cortes rápidos, texto em alto contraste e CTA forte."
+
+        if visual_style == "clean_light":
+            return "Vídeo vertical 9:16 com visual limpo, textos objetivos, bastante espaço visual e CTA claro."
+
+        if visual_style == "neon":
+            return "Vídeo vertical 9:16 com energia, neon, cortes rápidos, zooms e texto impactante."
+
+        if visual_style == "luxury":
+            return "Vídeo vertical 9:16 com ritmo sofisticado, cenas limpas, produto valorizado e CTA discreto."
+
+        return "Vídeo vertical 9:16 com cortes rápidos, texto na tela e CTA claro."
+
+    def _build_sound_direction(
+        self,
+        workspace: dict[str, Any],
+    ) -> str:
+        tone = workspace["tone"]
+
+        if tone == "premium":
+            return "Trilha moderna e sofisticada, sem exagero, com narração confiante."
+
+        if tone == "agressivo":
+            return "Trilha rápida, impacto no início e narração forte."
+
+        if tone == "emocional":
+            return "Trilha leve, envolvente e narração próxima."
+
+        return "Trilha moderna, ritmo rápido e estilo Reels/TikTok."
+
+    def _build_posting_angle(
+        self,
+        workspace: dict[str, Any],
+    ) -> str:
+        tone = workspace["tone"]
+
+        if tone == "educativo":
+            return (
+                "Começar explicando uma dúvida comum, mostrar o produto como solução "
+                "e finalizar com CTA claro."
+            )
+
+        if tone == "premium":
+            return (
+                "Começar com posicionamento de valor, mostrar benefício real e finalizar "
+                "com CTA limpo."
+            )
+
+        if tone == "agressivo":
+            return (
+                "Começar com dor forte ou curiosidade, mostrar o produto como solução "
+                "e finalizar com CTA direto."
+            )
+
+        return (
+            "Começar com uma dor ou curiosidade, mostrar o produto como solução "
+            "e finalizar com CTA direto para o link."
+        )
+
+    def _preferred_words_text(
+        self,
+        workspace: dict[str, Any],
+    ) -> str:
+        preferred_words = workspace.get("preferred_words", [])
+
+        if not preferred_words:
+            return ""
+
+        words = ", ".join([str(word) for word in preferred_words])
+
+        return f"Priorizar ideias como: {words}."
+
+    def _apply_forbidden_words(
+        self,
+        text: str,
+        workspace: dict[str, Any],
+    ) -> str:
+        forbidden_words = workspace.get("forbidden_words", [])
+
+        clean_text = text
+
+        for word in forbidden_words:
+            word_text = str(word).strip()
+
+            if not word_text:
+                continue
+
+            clean_text = clean_text.replace(word_text, "[termo removido]")
+            clean_text = clean_text.replace(word_text.capitalize(), "[termo removido]")
+            clean_text = clean_text.replace(word_text.upper(), "[termo removido]")
+
+        return clean_text
 
     def _build_package_text(
         self,
@@ -493,14 +834,40 @@ class CampaignFlowService:
         image_brief: str,
         voiceover_script: str,
         checklist: list[str],
+        workspace: dict[str, Any],
     ) -> str:
         checklist_text = "\n".join([f"- {item}" for item in checklist])
 
         affiliate_link = product["affiliate_link"] or "Adicionar link de afiliado"
         product_url = product["product_url"] or "Não informado"
 
+        preferred_words = (
+            ", ".join(workspace["preferred_words"])
+            if workspace["preferred_words"]
+            else "Nenhuma"
+        )
+
+        forbidden_words = (
+            ", ".join(workspace["forbidden_words"])
+            if workspace["forbidden_words"]
+            else "Nenhuma"
+        )
+
+        brand_name = workspace["brand_name"] or "Não definida"
+
         return f"""
-AFFILIATEAI PRO — CAMPAIGN FLOW
+AFFILIATEAI PRO — CAMPAIGN FLOW PERSONALIZADO
+
+WORKSPACE
+Projeto: {workspace["project_name"]}
+Marca: {brand_name}
+Tom de voz: {workspace["tone"]}
+Estilo visual: {workspace["visual_style"]}
+Idioma: {workspace["language"]}
+CTA padrão: {workspace["default_cta"]}
+Palavras preferidas: {preferred_words}
+Palavras proibidas: {forbidden_words}
+Observações: {workspace["notes"] or "Nenhuma"}
 
 PRODUTO
 Nome: {product["product_name"]}
