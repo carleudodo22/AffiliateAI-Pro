@@ -6,6 +6,7 @@ from app.schemas.content_generator import (
     ContentGeneratorRequest,
     ContentGeneratorResponse,
 )
+from app.services.ai_engine import ai_engine
 
 
 class ContentGeneratorService:
@@ -15,6 +16,89 @@ class ContentGeneratorService:
         db: Session,
         current_user: User,
     ) -> ContentGeneratorResponse:
+        fallback_package = self._build_fallback_package(data)
+
+        ai_result = ai_engine.generate_json(
+            system_prompt=(
+                "Você é o Content Generator Agent do AffiliateAI Pro. "
+                "Sua função é criar conteúdo de afiliados com copy, legenda, "
+                "roteiro, CTA, WhatsApp, hashtags e variações de anúncio."
+            ),
+            user_prompt=(
+                f"Produto: {data.product_name}\n"
+                f"Nicho: {data.niche}\n"
+                f"Público-alvo: {data.target_audience or 'não informado'}\n"
+                f"Plataforma: {data.platform}\n"
+                f"Tom: {data.tone}\n"
+                f"Objetivo: {data.objective}"
+            ),
+            fallback_data=fallback_package,
+        )
+
+        content_package = ai_result.get("data", fallback_package)
+
+        content_package["ai_engine"] = {
+            "provider": ai_result.get("provider", "mock"),
+            "model": ai_result.get("model", "affiliateai-local-mock"),
+            "mode": ai_result.get("mode", "safe_mock"),
+        }
+
+        content_generation = ContentGeneration(
+            user_id=current_user.id,
+            product_name=data.product_name.strip(),
+            niche=data.niche.strip().lower(),
+            target_audience=data.target_audience,
+            platform=data.platform,
+            tone=data.tone,
+            objective=data.objective,
+            headline=content_package["headline"],
+            short_copy=content_package["short_copy"],
+            caption=content_package["caption"],
+            video_script=content_package["video_script"],
+            whatsapp_text=content_package["whatsapp_text"],
+            cta=content_package["cta"],
+            hashtags=content_package["hashtags"],
+            ad_variations=content_package["ad_variations"],
+            content_package=content_package,
+            status="completed",
+        )
+
+        db.add(content_generation)
+        db.commit()
+        db.refresh(content_generation)
+
+        return self.get_content_response(content_generation)
+
+    def get_content_response(
+        self,
+        content_generation: ContentGeneration,
+    ) -> ContentGeneratorResponse:
+        return ContentGeneratorResponse(
+            id=content_generation.id,
+            agent="Content Generator Agent",
+            status=content_generation.status,
+            product_name=content_generation.product_name,
+            niche=content_generation.niche,
+            target_audience=content_generation.target_audience,
+            platform=content_generation.platform,
+            tone=content_generation.tone,
+            objective=content_generation.objective,
+            headline=content_generation.headline,
+            short_copy=content_generation.short_copy,
+            caption=content_generation.caption,
+            video_script=content_generation.video_script,
+            whatsapp_text=content_generation.whatsapp_text,
+            cta=content_generation.cta,
+            hashtags=content_generation.hashtags,
+            ad_variations=content_generation.ad_variations,
+            content_package=content_generation.content_package,
+            created_at=content_generation.created_at,
+        )
+
+    def _build_fallback_package(
+        self,
+        data: ContentGeneratorRequest,
+    ) -> dict:
         product_name = data.product_name.strip()
         niche = data.niche.strip().lower()
         target_audience = (
@@ -22,303 +106,167 @@ class ContentGeneratorService:
             or f"pessoas interessadas em soluções práticas no nicho de {niche}"
         )
 
+        platform_label = self._format_platform(data.platform)
+        tone_label = self._format_tone(data.tone)
+        objective_label = self._format_objective(data.objective)
+
         headline = self._build_headline(
             product_name=product_name,
-            tone=data.tone,
-        )
-
-        short_copy = self._build_short_copy(
-            product_name=product_name,
-            niche=niche,
-            target_audience=target_audience,
-            tone=data.tone,
-        )
-
-        caption = self._build_caption(
-            product_name=product_name,
-            niche=niche,
-            platform=data.platform,
-            objective=data.objective,
-        )
-
-        video_script = self._build_video_script(
-            product_name=product_name,
-            niche=niche,
-            platform=data.platform,
-        )
-
-        whatsapp_text = self._build_whatsapp_text(
-            product_name=product_name,
-            niche=niche,
-            target_audience=target_audience,
-        )
-
-        cta = self._build_cta(objective=data.objective)
-
-        hashtags = self._build_hashtags(
-            product_name=product_name,
-            niche=niche,
-            platform=data.platform,
-        )
-
-        ad_variations = self._build_ad_variations(
-            product_name=product_name,
             niche=niche,
             tone=data.tone,
         )
 
-        content_package = {
-            "summary": {
-                "product_name": product_name,
-                "niche": niche,
-                "target_audience": target_audience,
-                "platform": data.platform,
-                "tone": data.tone,
-                "objective": data.objective,
-            },
-            "generated_content": {
-                "headline": headline,
-                "short_copy": short_copy,
-                "caption": caption,
-                "video_script": video_script,
-                "whatsapp_text": whatsapp_text,
-                "cta": cta,
-                "hashtags": hashtags,
-                "ad_variations": ad_variations,
-            },
-            "publishing_plan": {
-                "main_platform": data.platform,
-                "recommended_format": self._recommended_format(data.platform),
-                "posting_angle": (
-                    "Começar com uma dor ou curiosidade, apresentar o produto "
-                    "como solução simples e finalizar com CTA direto."
+        short_copy = (
+            f"Se você está no nicho de {niche} e quer uma solução prática, "
+            f"o {product_name} pode ser uma ótima opção. Ele chama atenção, "
+            f"resolve uma dor clara e pode funcionar muito bem em campanhas "
+            f"com tom {tone_label} para {objective_label}."
+        )
+
+        caption = (
+            f"Esse é o tipo de produto que prende atenção rápido: {product_name}. "
+            f"Ideal para {target_audience}. Use uma demonstração simples, mostre "
+            f"o benefício principal e finalize com uma chamada direta para ação."
+        )
+
+        video_script = (
+            f"CENA 1 - Dor: Mostre uma situação comum do público no nicho de {niche}.\n"
+            f"CENA 2 - Produto: Apresente o {product_name} como solução prática.\n"
+            f"CENA 3 - Demonstração: Mostre o produto sendo usado de forma simples.\n"
+            f"CENA 4 - Benefício: Destaque economia de tempo, praticidade ou resultado.\n"
+            f"CENA 5 - CTA: Convide a pessoa para clicar no link e conferir a oferta."
+        )
+
+        whatsapp_text = (
+            f"Olha esse produto que encontrei: {product_name}.\n\n"
+            f"Ele pode ajudar bastante quem procura uma solução prática no nicho de {niche}. "
+            f"Dá uma olhada na oferta e vê se faz sentido pra você."
+        )
+
+        cta = self._build_cta(data.objective)
+
+        hashtags = [
+            "#afiliados",
+            "#marketingdigital",
+            "#achadinhos",
+            "#oferta",
+            f"#{niche.replace(' ', '')}",
+            f"#{product_name.lower().replace(' ', '')}",
+            f"#{platform_label.lower().replace(' ', '')}",
+        ]
+
+        ad_variations = [
+            (
+                f"Variação 1: {product_name} para quem quer praticidade "
+                f"no nicho de {niche}."
+            ),
+            (
+                f"Variação 2: Veja por que esse produto está chamando atenção: "
+                f"{product_name}."
+            ),
+            (
+                f"Variação 3: Uma solução simples, visual e direta para "
+                f"{target_audience}."
+            ),
+        ]
+
+        return {
+            "headline": headline,
+            "short_copy": short_copy,
+            "caption": caption,
+            "video_script": video_script,
+            "whatsapp_text": whatsapp_text,
+            "cta": cta,
+            "hashtags": hashtags,
+            "ad_variations": ad_variations,
+            "strategy": {
+                "platform": platform_label,
+                "tone": tone_label,
+                "objective": objective_label,
+                "angle": (
+                    f"Use uma abordagem {tone_label}, com demonstração rápida, "
+                    f"benefício claro e CTA direto."
                 ),
-                "test_variations": [
-                    "Teste 1: foco em dor.",
-                    "Teste 2: foco em curiosidade.",
-                    "Teste 3: foco em benefício rápido.",
-                ],
             },
         }
 
-        saved_content = ContentGeneration(
-            user_id=current_user.id,
-            product_name=product_name,
-            niche=niche,
-            target_audience=target_audience,
-            platform=data.platform,
-            tone=data.tone,
-            objective=data.objective,
-            headline=headline,
-            short_copy=short_copy,
-            caption=caption,
-            video_script=video_script,
-            whatsapp_text=whatsapp_text,
-            cta=cta,
-            hashtags=hashtags,
-            ad_variations=ad_variations,
-            content_package=content_package,
-            status="completed",
-        )
-
-        db.add(saved_content)
-        db.commit()
-        db.refresh(saved_content)
-
-        return self._to_response(saved_content)
-
-    def get_content_response(
+    def _build_headline(
         self,
-        content: ContentGeneration,
-    ) -> ContentGeneratorResponse:
-        return self._to_response(content)
-
-    def _to_response(
-        self,
-        content: ContentGeneration,
-    ) -> ContentGeneratorResponse:
-        return ContentGeneratorResponse(
-            id=content.id,
-            agent="Content Generator",
-            status=content.status,
-            product_name=content.product_name,
-            niche=content.niche,
-            target_audience=content.target_audience,
-            platform=content.platform,
-            tone=content.tone,
-            objective=content.objective,
-            headline=content.headline,
-            short_copy=content.short_copy,
-            caption=content.caption,
-            video_script=content.video_script,
-            whatsapp_text=content.whatsapp_text,
-            cta=content.cta,
-            hashtags=content.hashtags,
-            ad_variations=content.ad_variations,
-            content_package=content.content_package,
-            created_at=content.created_at,
-        )
-
-    def _build_headline(self, product_name: str, tone: str) -> str:
+        product_name: str,
+        niche: str,
+        tone: str,
+    ) -> str:
         if tone == "premium":
-            return f"{product_name}: mais praticidade com qualidade no dia a dia"
+            return f"{product_name}: uma solução premium para quem valoriza resultado"
 
         if tone == "emocional":
-            return f"Você merece uma rotina mais simples com {product_name}"
+            return f"O detalhe que pode transformar sua rotina no nicho de {niche}"
 
         if tone == "agressivo":
             return f"Pare de perder tempo: conheça o {product_name}"
 
         if tone == "direto":
-            return f"Conheça o {product_name} e veja se faz sentido para você"
+            return f"{product_name}: prático, útil e pronto para resolver sua necessidade"
 
-        return f"Esse {product_name} está chamando atenção"
+        if tone == "popular":
+            return f"O achadinho que está chamando atenção: {product_name}"
 
-    def _build_short_copy(
+        return f"Esse {product_name} pode viralizar no nicho de {niche}"
+
+    def _build_cta(
         self,
-        product_name: str,
-        niche: str,
-        target_audience: str,
-        tone: str,
-    ) -> str:
-        if tone == "agressivo":
-            return (
-                f"Se você está no nicho de {niche} e ainda resolve tudo do jeito difícil, "
-                f"talvez esteja na hora de conhecer o {product_name}. Uma opção prática "
-                f"para {target_audience}."
-            )
-
-        if tone == "premium":
-            return (
-                f"O {product_name} é uma opção para quem busca mais praticidade, "
-                f"boa apresentação e uma solução útil dentro do nicho de {niche}."
-            )
-
-        return (
-            f"Se você está no nicho de {niche} e quer mais praticidade, "
-            f"o {product_name} pode ser uma ótima opção. Ele conversa diretamente "
-            f"com {target_audience} e pode ser apresentado com conteúdo simples, visual e direto."
-        )
-
-    def _build_caption(
-        self,
-        product_name: str,
-        niche: str,
-        platform: str,
         objective: str,
     ) -> str:
         if objective == "capturar_lead":
-            return (
-                f"Quer receber mais achadinhos e oportunidades no nicho de {niche}? "
-                f"O {product_name} é um exemplo de produto que pode facilitar a rotina. "
-                f"Comente ou chame no direct para saber mais."
-            )
-
-        if objective == "validar_produto":
-            return (
-                f"Estou analisando esse produto no nicho de {niche}: {product_name}. "
-                f"Você usaria algo assim no dia a dia?"
-            )
-
-        return (
-            f"O {product_name} está chamando atenção no nicho de {niche}. "
-            f"Uma solução prática, visual e fácil de entender. Confira a oferta e veja se faz sentido para você."
-        )
-
-    def _build_video_script(
-        self,
-        product_name: str,
-        niche: str,
-        platform: str,
-    ) -> str:
-        return (
-            f"CENA 1: Abra mostrando uma dor comum no nicho de {niche}. "
-            f"Texto na tela: 'Você ainda passa por isso?'. "
-            f"CENA 2: Mostre rapidamente o problema ou a rotina difícil. "
-            f"CENA 3: Apresente o {product_name} como solução prática. "
-            f"CENA 4: Mostre 3 benefícios em cortes rápidos. "
-            f"CENA 5: Finalize com CTA: 'Clique no link e confira a oferta'. "
-            f"Formato recomendado para {platform}: vídeo vertical, rápido e direto."
-        )
-
-    def _build_whatsapp_text(
-        self,
-        product_name: str,
-        niche: str,
-        target_audience: str,
-    ) -> str:
-        return (
-            f"Olha esse produto que encontrei: {product_name}. "
-            f"Ele pode ser uma boa opção para {target_audience}, principalmente "
-            f"para quem busca praticidade no nicho de {niche}. Dá uma olhada na oferta."
-        )
-
-    def _build_cta(self, objective: str) -> str:
-        if objective == "capturar_lead":
-            return "Chame no direct para receber mais detalhes."
+            return "Cadastre-se agora e receba a indicação completa."
 
         if objective == "aquecer_audiencia":
-            return "Salve esse conteúdo para ver depois."
+            return "Salve esse conteúdo e acompanhe as próximas dicas."
 
         if objective == "validar_produto":
-            return "Comente se você usaria esse produto."
+            return "Veja a oferta e descubra se esse produto faz sentido para você."
 
-        return "Clique no link e confira a oferta."
+        return "Clique no link e confira a oferta agora."
 
-    def _build_hashtags(
+    def _format_platform(
         self,
-        product_name: str,
-        niche: str,
         platform: str,
-    ) -> list[str]:
-        clean_product = product_name.replace(" ", "")
-        clean_niche = niche.replace(" ", "")
+    ) -> str:
+        labels = {
+            "tiktok": "TikTok",
+            "instagram": "Instagram",
+            "youtube_shorts": "YouTube Shorts",
+            "whatsapp": "WhatsApp",
+            "facebook_ads": "Facebook Ads",
+            "google": "Google",
+        }
 
-        base_hashtags = [
-            "#afiliados",
-            "#marketingdigital",
-            "#achadinhos",
-            "#oferta",
-            f"#{clean_niche}",
-            f"#{clean_product}",
-        ]
+        return labels.get(platform, platform)
 
-        if platform == "tiktok":
-            base_hashtags.extend(["#tiktokmefezcomprar", "#viral"])
-
-        if platform == "instagram":
-            base_hashtags.extend(["#reels", "#dicas"])
-
-        if platform == "youtube_shorts":
-            base_hashtags.extend(["#shorts", "#produtos"])
-
-        return base_hashtags
-
-    def _build_ad_variations(
+    def _format_tone(
         self,
-        product_name: str,
-        niche: str,
         tone: str,
-    ) -> list[str]:
-        return [
-            f"Variação 1: {product_name} para quem quer praticidade no dia a dia.",
-            f"Variação 2: Veja por que esse produto está chamando atenção no nicho de {niche}.",
-            f"Variação 3: Uma solução simples para quem busca resultado rápido.",
-            f"Variação 4: O tipo de produto que chama atenção porque resolve uma dor clara.",
-            f"Variação 5: Teste criativo em tom {tone}, com foco em benefício rápido e CTA direto.",
-        ]
+    ) -> str:
+        labels = {
+            "viral": "viral",
+            "direto": "direto",
+            "premium": "premium",
+            "emocional": "emocional",
+            "agressivo": "agressivo",
+            "popular": "popular",
+        }
 
-    def _recommended_format(self, platform: str) -> str:
-        if platform in ["tiktok", "instagram", "youtube_shorts"]:
-            return "Vídeo vertical 9:16 entre 20 e 35 segundos."
+        return labels.get(tone, tone)
 
-        if platform == "whatsapp":
-            return "Mensagem curta com oferta direta e link."
+    def _format_objective(
+        self,
+        objective: str,
+    ) -> str:
+        labels = {
+            "vender": "venda",
+            "capturar_lead": "captura de lead",
+            "aquecer_audiencia": "aquecimento de audiência",
+            "validar_produto": "validação de produto",
+        }
 
-        if platform == "facebook_ads":
-            return "Criativo direto com headline forte, benefício claro e CTA."
-
-        if platform == "google":
-            return "Anúncio textual com intenção de busca e CTA objetivo."
-
-        return "Conteúdo curto, visual e direto."
+        return labels.get(objective, objective)

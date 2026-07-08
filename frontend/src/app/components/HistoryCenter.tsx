@@ -13,63 +13,67 @@ type HistoryType =
   | "autopilot"
   | "product_hunter"
   | "content_generator"
-  | "creative_image";
+  | "creative_image"
+  | "campaign_package";
 
-type HistoryRecord = {
+type HistoryRealType = Exclude<HistoryType, "all">;
+
+type HistoryItem = {
   id: number;
-  type:
-    | "autopilot"
-    | "product_hunter"
-    | "content_generator"
-    | "creative_image";
+  type: HistoryRealType;
   title: string;
   subtitle: string;
-  score?: number | string;
-  status: string;
-  created_at?: string;
+  meta: string;
+  date: string;
+  score?: string;
+  decision?: string;
   raw: Record<string, any>;
 };
 
+type DetailState = {
+  type: HistoryRealType;
+  data: Record<string, any>;
+} | null;
+
 export default function HistoryCenter({ token }: HistoryCenterProps) {
-  const [activeType, setActiveType] = useState<HistoryType>("all");
-  const [records, setRecords] = useState<HistoryRecord[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(
-    null
+  const [activeFilter, setActiveFilter] = useState<HistoryType>("all");
+
+  const [autopilotHistory, setAutopilotHistory] = useState<HistoryItem[]>([]);
+  const [productHunterHistory, setProductHunterHistory] = useState<HistoryItem[]>(
+    []
   );
-  const [selectedDetails, setSelectedDetails] = useState<Record<
-    string,
-    any
-  > | null>(null);
+  const [contentHistory, setContentHistory] = useState<HistoryItem[]>([]);
+  const [creativeHistory, setCreativeHistory] = useState<HistoryItem[]>([]);
+  const [packageHistory, setPackageHistory] = useState<HistoryItem[]>([]);
+
+  const [detail, setDetail] = useState<DetailState>(null);
 
   const [loading, setLoading] = useState(false);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
+  const [lastSync, setLastSync] = useState("");
 
   useEffect(() => {
-    loadHistory();
+    loadAllHistory();
 
-    function refreshHistory() {
-      loadHistory();
-    }
-
-    window.addEventListener("autopilot-history-updated", refreshHistory);
-    window.addEventListener("product-hunter-history-updated", refreshHistory);
-    window.addEventListener("content-generator-history-updated", refreshHistory);
-    window.addEventListener("creative-image-history-updated", refreshHistory);
+    window.addEventListener("autopilot-history-updated", loadAllHistory);
+    window.addEventListener("product-hunter-history-updated", loadAllHistory);
+    window.addEventListener("content-generator-history-updated", loadAllHistory);
+    window.addEventListener("creative-image-history-updated", loadAllHistory);
+    window.addEventListener("campaign-package-history-updated", loadAllHistory);
 
     return () => {
-      window.removeEventListener("autopilot-history-updated", refreshHistory);
-      window.removeEventListener(
-        "product-hunter-history-updated",
-        refreshHistory
-      );
+      window.removeEventListener("autopilot-history-updated", loadAllHistory);
+      window.removeEventListener("product-hunter-history-updated", loadAllHistory);
       window.removeEventListener(
         "content-generator-history-updated",
-        refreshHistory
+        loadAllHistory
       );
+      window.removeEventListener("creative-image-history-updated", loadAllHistory);
       window.removeEventListener(
-        "creative-image-history-updated",
-        refreshHistory
+        "campaign-package-history-updated",
+        loadAllHistory
       );
     };
   }, [token]);
@@ -78,207 +82,243 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
     return token || localStorage.getItem("affiliateai_token") || "";
   }
 
-  function formatDate(date?: string) {
-    if (!date) {
-      return "Sem data";
-    }
-
-    return new Date(date).toLocaleString("pt-BR");
-  }
-
-  function formatType(type: HistoryRecord["type"]) {
-    if (type === "autopilot") return "Autopilot";
-    if (type === "product_hunter") return "Product Hunter";
-    if (type === "content_generator") return "Content Generator";
-    return "Creative Image";
-  }
-
-  function getEndpointByType(type: HistoryRecord["type"], id: number) {
-    if (type === "autopilot") return `${API_URL}/api/autopilot/${id}`;
-
-    if (type === "product_hunter") {
-      return `${API_URL}/api/product-hunter/${id}`;
-    }
-
-    if (type === "content_generator") {
-      return `${API_URL}/api/content-generator/${id}`;
-    }
-
-    return `${API_URL}/api/creative-image/${id}`;
-  }
-
-  async function loadHistory() {
-    setLoading(true);
-    setErrorMessage("");
+  function formatDate(value?: string) {
+    if (!value) return "Data não encontrada";
 
     try {
-      const currentToken = getToken();
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return value;
+    }
+  }
 
-      if (!currentToken) {
-        setRecords([]);
-        return;
-      }
+  function copyText(text: string, message = "Copiado com sucesso.") {
+    navigator.clipboard.writeText(text);
+    setCopyMessage(message);
+  }
 
-      const requestHeaders = {
+  async function fetchHistory(endpoint: string) {
+    const currentToken = getToken();
+
+    if (!currentToken) {
+      return [];
+    }
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      headers: {
         Authorization: `Bearer ${currentToken}`,
-      };
+      },
+    });
 
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data;
+  }
+
+  async function loadAllHistory() {
+    setLoading(true);
+    setErrorMessage("");
+    setCopyMessage("");
+
+    try {
       const [
-        autopilotResponse,
-        productHunterResponse,
-        contentResponse,
-        creativeImageResponse,
-      ] = await Promise.allSettled([
-        fetch(`${API_URL}/api/autopilot/history`, {
-          headers: requestHeaders,
-        }),
-        fetch(`${API_URL}/api/product-hunter/history`, {
-          headers: requestHeaders,
-        }),
-        fetch(`${API_URL}/api/content-generator/history`, {
-          headers: requestHeaders,
-        }),
-        fetch(`${API_URL}/api/creative-image/history`, {
-          headers: requestHeaders,
-        }),
+        autopilotData,
+        productHunterData,
+        contentData,
+        creativeData,
+        packageData,
+      ] = await Promise.all([
+        fetchHistory("/api/autopilot/history"),
+        fetchHistory("/api/product-hunter/history"),
+        fetchHistory("/api/content-generator/history"),
+        fetchHistory("/api/creative-image/history"),
+        fetchHistory("/api/campaign-package/history"),
       ]);
 
-      const allRecords: HistoryRecord[] = [];
+      setAutopilotHistory(
+        autopilotData.map((item: Record<string, any>) => ({
+          id: Number(item.id),
+          type: "autopilot",
+          title: item.selected_product || "Campanha Autopilot",
+          subtitle: `${item.niche || "nicho"} • ${
+            item.marketplace || "marketplace"
+          } • ${item.main_channel || "canal"}`,
+          meta: "Autopilot",
+          date: item.created_at,
+          score: item.score ? `${item.score}/100` : undefined,
+          decision: item.decision,
+          raw: item,
+        }))
+      );
 
-      if (
-        autopilotResponse.status === "fulfilled" &&
-        autopilotResponse.value.ok
-      ) {
-        const autopilotData = await autopilotResponse.value.json();
+      setProductHunterHistory(
+        productHunterData.map((item: Record<string, any>) => ({
+          id: Number(item.id ?? item.analysis_id),
+          type: "product_hunter",
+          title: item.product_name || item.selected_product || "Produto analisado",
+          subtitle: `${item.niche || item.category || "nicho"} • ${
+            item.marketplace || "marketplace"
+          } • ${item.traffic_channel || item.main_channel || "canal"}`,
+          meta: "Product Hunter",
+          date: item.created_at,
+          score:
+            item.score || item.final_score
+              ? `${item.score || item.final_score}/100`
+              : undefined,
+          decision: item.decision,
+          raw: item,
+        }))
+      );
 
-        if (Array.isArray(autopilotData)) {
-          for (const item of autopilotData) {
-            allRecords.push({
-              id: Number(item.id),
-              type: "autopilot",
-              title: item.selected_product || "Campanha Autopilot",
-              subtitle: `${item.niche || "nicho"} • ${
-                item.marketplace || "marketplace"
-              } • ${item.main_channel || "canal"}`,
-              score: item.score,
-              status: item.status || "completed",
-              created_at: item.created_at,
-              raw: item,
-            });
-          }
-        }
-      }
+      setContentHistory(
+        contentData.map((item: Record<string, any>) => ({
+          id: Number(item.id),
+          type: "content_generator",
+          title: item.product_name || "Conteúdo gerado",
+          subtitle: `${item.niche || "nicho"} • ${
+            item.platform || "plataforma"
+          } • ${item.tone || "tom"}`,
+          meta: "Content Generator",
+          date: item.created_at,
+          decision: item.headline,
+          raw: item,
+        }))
+      );
 
-      if (
-        productHunterResponse.status === "fulfilled" &&
-        productHunterResponse.value.ok
-      ) {
-        const productHunterData = await productHunterResponse.value.json();
+      setCreativeHistory(
+        creativeData.map((item: Record<string, any>) => ({
+          id: Number(item.id ?? item.creative_id),
+          type: "creative_image",
+          title: item.product_name || "Criativo visual",
+          subtitle: `${item.niche || "nicho"} • ${
+            item.platform || "plataforma"
+          } • ${item.creative_style || "estilo"}`,
+          meta: "Creative Image",
+          date: item.created_at,
+          decision: item.art_headline,
+          raw: item,
+        }))
+      );
 
-        if (Array.isArray(productHunterData)) {
-          for (const item of productHunterData) {
-            allRecords.push({
-              id: Number(item.id ?? item.analysis_id),
-              type: "product_hunter",
-              title:
-                item.product_name ||
-                item.selected_product ||
-                item.name ||
-                "Análise de produto",
-              subtitle: `${item.niche || item.category || "nicho"} • ${
-                item.marketplace || "marketplace"
-              } • ${item.traffic_channel || item.main_channel || "canal"}`,
-              score:
-                item?.score?.final_score ??
-                item.final_score ??
-                item.score ??
-                "--",
-              status: item.status || "completed",
-              created_at: item.created_at,
-              raw: item,
-            });
-          }
-        }
-      }
+      setPackageHistory(
+        packageData.map((item: Record<string, any>) => ({
+          id: Number(item.id),
+          type: "campaign_package",
+          title: item.product_name || "Pacote de campanha",
+          subtitle: `${item.niche || "nicho"} • ${
+            item.marketplace || "marketplace"
+          }`,
+          meta: "Campaign Package",
+          date: item.created_at,
+          score: item.score ? `${item.score}/100` : undefined,
+          decision: item.decision,
+          raw: item,
+        }))
+      );
 
-      if (contentResponse.status === "fulfilled" && contentResponse.value.ok) {
-        const contentData = await contentResponse.value.json();
-
-        if (Array.isArray(contentData)) {
-          for (const item of contentData) {
-            allRecords.push({
-              id: Number(item.id),
-              type: "content_generator",
-              title: item.product_name || "Conteúdo gerado",
-              subtitle: `${item.niche || "nicho"} • ${
-                item.platform || "plataforma"
-              } • ${item.tone || "tom"}`,
-              status: item.status || "completed",
-              created_at: item.created_at,
-              raw: item,
-            });
-          }
-        }
-      }
-
-      if (
-        creativeImageResponse.status === "fulfilled" &&
-        creativeImageResponse.value.ok
-      ) {
-        const creativeImageData = await creativeImageResponse.value.json();
-
-        if (Array.isArray(creativeImageData)) {
-          for (const item of creativeImageData) {
-            allRecords.push({
-              id: Number(item.id),
-              type: "creative_image",
-              title: item.product_name || "Criativo visual",
-              subtitle: `${item.niche || "nicho"} • ${
-                item.platform || "plataforma"
-              } • ${item.creative_style || "estilo"}`,
-              status: item.status || "completed",
-              created_at: item.created_at,
-              raw: item,
-            });
-          }
-        }
-      }
-
-      allRecords.sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-
-        return dateB - dateA;
-      });
-
-      setRecords(allRecords);
+      setLastSync(new Date().toLocaleTimeString("pt-BR"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao carregar histórico.");
+        setErrorMessage("Erro ao carregar histórico geral.");
       }
-
-      setRecords([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function openRecord(record: HistoryRecord) {
-    setSelectedRecord(record);
-    setSelectedDetails(null);
-    setLoadingDetails(true);
+  const allItems = useMemo(() => {
+    return [
+      ...autopilotHistory,
+      ...productHunterHistory,
+      ...contentHistory,
+      ...creativeHistory,
+      ...packageHistory,
+    ].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+
+      return dateB - dateA;
+    });
+  }, [
+    autopilotHistory,
+    productHunterHistory,
+    contentHistory,
+    creativeHistory,
+    packageHistory,
+  ]);
+
+  const filteredItems = useMemo(() => {
+    if (activeFilter === "all") {
+      return allItems;
+    }
+
+    return allItems.filter((item) => item.type === activeFilter);
+  }, [activeFilter, allItems]);
+
+  const filterOptions = [
+    {
+      key: "all" as HistoryType,
+      label: "Tudo",
+      count: allItems.length,
+    },
+    {
+      key: "autopilot" as HistoryType,
+      label: "Autopilot",
+      count: autopilotHistory.length,
+    },
+    {
+      key: "product_hunter" as HistoryType,
+      label: "Product Hunter",
+      count: productHunterHistory.length,
+    },
+    {
+      key: "content_generator" as HistoryType,
+      label: "Content",
+      count: contentHistory.length,
+    },
+    {
+      key: "creative_image" as HistoryType,
+      label: "Creative",
+      count: creativeHistory.length,
+    },
+    {
+      key: "campaign_package" as HistoryType,
+      label: "Packages",
+      count: packageHistory.length,
+    },
+  ];
+
+  async function openDetail(item: HistoryItem) {
+    setLoadingDetail(true);
     setErrorMessage("");
+    setCopyMessage("");
+
+    const endpointByType: Record<HistoryRealType, string> = {
+      autopilot: "/api/autopilot",
+      product_hunter: "/api/product-hunter",
+      content_generator: "/api/content-generator",
+      creative_image: "/api/creative-image",
+      campaign_package: "/api/campaign-package",
+    };
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado.");
+        throw new Error("Você precisa estar logado para abrir o histórico.");
       }
 
-      const response = await fetch(getEndpointByType(record.type, record.id), {
+      const response = await fetch(`${API_URL}${endpointByType[item.type]}/${item.id}`, {
         headers: {
           Authorization: `Bearer ${currentToken}`,
         },
@@ -291,165 +331,378 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
 
       const data = await response.json();
 
-      setSelectedDetails(data);
+      setDetail({
+        type: item.type,
+        data,
+      });
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao abrir item do histórico.");
+        setErrorMessage("Erro ao abrir detalhe.");
       }
     } finally {
-      setLoadingDetails(false);
+      setLoadingDetail(false);
     }
   }
 
-  function copyText(text: string) {
-    navigator.clipboard.writeText(text);
+  function getDetailTitle() {
+    if (!detail) return "Selecione um registro";
+
+    if (detail.type === "autopilot") return "Autopilot";
+    if (detail.type === "product_hunter") return "Product Hunter";
+    if (detail.type === "content_generator") return "Content Generator";
+    if (detail.type === "creative_image") return "Creative Image";
+
+    return "Campaign Package";
   }
 
-  function getDetailValue(keys: string[], fallback = "") {
-    if (!selectedDetails) return fallback;
+  function getDetailSubtitle() {
+    if (!detail) return "Escolha um item da lista para visualizar os detalhes.";
 
-    for (const key of keys) {
-      const value = key.split(".").reduce<any>((acc, part) => {
-        if (!acc) return undefined;
-        return acc[part];
-      }, selectedDetails);
-
-      if (value) return String(value);
+    if (detail.type === "autopilot") {
+      return detail.data.selected_product || "Campanha aberta";
     }
 
-    return fallback;
+    if (detail.type === "product_hunter") {
+      return (
+        detail.data.product_name ||
+        detail.data?.product?.name ||
+        detail.data.name ||
+        "Produto analisado"
+      );
+    }
+
+    if (detail.type === "content_generator") {
+      return detail.data.product_name || "Conteúdo gerado";
+    }
+
+    if (detail.type === "creative_image") {
+      return detail.data.product_name || "Criativo visual";
+    }
+
+    return detail.data.product_name || "Pacote final salvo";
   }
 
-  function getDetailList(keys: string[], fallback: string[] = []) {
-    if (!selectedDetails) return fallback;
+  function renderCopyBox(title: string, text: string, message: string) {
+    return (
+      <div className="historyPro__detailBox">
+        <div>
+          <h4>{title}</h4>
+          <button onClick={() => copyText(text || "", message)}>Copiar</button>
+        </div>
 
-    for (const key of keys) {
-      const value = key.split(".").reduce<any>((acc, part) => {
-        if (!acc) return undefined;
-        return acc[part];
-      }, selectedDetails);
-
-      if (Array.isArray(value)) return value.map(String);
-    }
-
-    return fallback;
+        <p>{text || "Não gerado."}</p>
+      </div>
+    );
   }
 
-  const filteredRecords = useMemo(() => {
-    if (activeType === "all") {
-      return records;
+  function renderAutopilotDetail(data: Record<string, any>) {
+    return (
+      <div className="historyPro__detailContent">
+        <div className="historyPro__detailMetrics">
+          <div>
+            <span>Produto</span>
+            <strong>{data.selected_product || "Não encontrado"}</strong>
+          </div>
+
+          <div>
+            <span>Score</span>
+            <strong>{data.score || "--"}/100</strong>
+          </div>
+
+          <div>
+            <span>Nicho</span>
+            <strong>{data.niche || "Não encontrado"}</strong>
+          </div>
+
+          <div>
+            <span>Canal</span>
+            <strong>{data.main_channel || "Não encontrado"}</strong>
+          </div>
+        </div>
+
+        {renderCopyBox("Estratégia", data.strategy, "Estratégia copiada.")}
+        {renderCopyBox("Copy curta", data.short_copy, "Copy copiada.")}
+        {renderCopyBox("Roteiro de vídeo", data.video_script, "Roteiro copiado.")}
+        {renderCopyBox("Briefing de imagem", data.image_brief, "Briefing copiado.")}
+      </div>
+    );
+  }
+
+  function renderProductHunterDetail(data: Record<string, any>) {
+    const score =
+      data?.score?.final_score ||
+      data?.final_score ||
+      data?.score ||
+      data?.analysis?.score?.final_score ||
+      "--";
+
+    const strategy =
+      data?.strategy?.positioning ||
+      data.strategy ||
+      data?.analysis?.strategy?.positioning ||
+      "Estratégia não gerada.";
+
+    return (
+      <div className="historyPro__detailContent">
+        <div className="historyPro__detailMetrics">
+          <div>
+            <span>Produto</span>
+            <strong>
+              {data.product_name || data?.product?.name || data.name || "Produto"}
+            </strong>
+          </div>
+
+          <div>
+            <span>Score</span>
+            <strong>{score}/100</strong>
+          </div>
+
+          <div>
+            <span>Marketplace</span>
+            <strong>{data.marketplace || "Não encontrado"}</strong>
+          </div>
+
+          <div>
+            <span>Decisão</span>
+            <strong>{data.decision || data.recommendation || "Análise"}</strong>
+          </div>
+        </div>
+
+        {renderCopyBox("Estratégia recomendada", strategy, "Estratégia copiada.")}
+      </div>
+    );
+  }
+
+  function renderContentDetail(data: Record<string, any>) {
+    return (
+      <div className="historyPro__detailContent">
+        <div className="historyPro__detailMetrics">
+          <div>
+            <span>Produto</span>
+            <strong>{data.product_name || "Produto"}</strong>
+          </div>
+
+          <div>
+            <span>Nicho</span>
+            <strong>{data.niche || "Nicho"}</strong>
+          </div>
+
+          <div>
+            <span>Plataforma</span>
+            <strong>{data.platform || "Plataforma"}</strong>
+          </div>
+
+          <div>
+            <span>Tom</span>
+            <strong>{data.tone || "Tom"}</strong>
+          </div>
+        </div>
+
+        {renderCopyBox("Headline", data.headline, "Headline copiada.")}
+        {renderCopyBox("Copy curta", data.short_copy, "Copy copiada.")}
+        {renderCopyBox("Legenda", data.caption, "Legenda copiada.")}
+        {renderCopyBox("Roteiro de vídeo", data.video_script, "Roteiro copiado.")}
+        {renderCopyBox("WhatsApp", data.whatsapp_text, "Texto copiado.")}
+      </div>
+    );
+  }
+
+  function renderCreativeDetail(data: Record<string, any>) {
+    return (
+      <div className="historyPro__detailContent">
+        <div className="historyPro__detailMetrics">
+          <div>
+            <span>Produto</span>
+            <strong>{data.product_name || "Produto"}</strong>
+          </div>
+
+          <div>
+            <span>Nicho</span>
+            <strong>{data.niche || "Nicho"}</strong>
+          </div>
+
+          <div>
+            <span>Plataforma</span>
+            <strong>{data.platform || "Plataforma"}</strong>
+          </div>
+
+          <div>
+            <span>Estilo</span>
+            <strong>{data.creative_style || "Estilo"}</strong>
+          </div>
+        </div>
+
+        {renderCopyBox("Título da arte", data.art_headline, "Título copiado.")}
+        {renderCopyBox("Subtítulo", data.art_subtitle, "Subtítulo copiado.")}
+        {renderCopyBox("CTA", data.cta, "CTA copiado.")}
+        {renderCopyBox("Briefing visual", data.visual_brief, "Briefing copiado.")}
+        {renderCopyBox("Prompt de imagem", data.image_prompt, "Prompt copiado.")}
+      </div>
+    );
+  }
+
+  function renderPackageDetail(data: Record<string, any>) {
+    const packageText =
+      typeof data.package_text === "string"
+        ? data.package_text
+        : "Texto do pacote não encontrado.";
+
+    return (
+      <div className="historyPro__detailContent">
+        <div className="historyPro__detailMetrics">
+          <div>
+            <span>Produto</span>
+            <strong>{data.product_name || "Produto"}</strong>
+          </div>
+
+          <div>
+            <span>Nicho</span>
+            <strong>{data.niche || "Nicho"}</strong>
+          </div>
+
+          <div>
+            <span>Marketplace</span>
+            <strong>{data.marketplace || "Marketplace"}</strong>
+          </div>
+
+          <div>
+            <span>Score</span>
+            <strong>{data.score || "--"}/100</strong>
+          </div>
+        </div>
+
+        <div className="historyPro__packageBox">
+          <div>
+            <h4>Pacote completo salvo</h4>
+            <button
+              onClick={() =>
+                copyText(packageText, "Pacote de campanha copiado.")
+              }
+            >
+              Copiar pacote
+            </button>
+          </div>
+
+          <textarea readOnly value={packageText} />
+        </div>
+      </div>
+    );
+  }
+
+  function renderDetail() {
+    if (!detail) {
+      return (
+        <div className="historyPro__detailEmpty">
+          <div>
+            <span>Nenhum registro aberto</span>
+            <h4>Selecione um item do histórico</h4>
+            <p>
+              Ao clicar em um registro, o AffiliateAI Pro carrega o detalhe
+              completo direto do backend.
+            </p>
+          </div>
+        </div>
+      );
     }
 
-    return records.filter((record) => record.type === activeType);
-  }, [records, activeType]);
+    if (detail.type === "autopilot") return renderAutopilotDetail(detail.data);
+    if (detail.type === "product_hunter") {
+      return renderProductHunterDetail(detail.data);
+    }
+    if (detail.type === "content_generator") {
+      return renderContentDetail(detail.data);
+    }
+    if (detail.type === "creative_image") return renderCreativeDetail(detail.data);
 
-  const counters = useMemo(() => {
-    return {
-      all: records.length,
-      autopilot: records.filter((record) => record.type === "autopilot").length,
-      product_hunter: records.filter(
-        (record) => record.type === "product_hunter"
-      ).length,
-      content_generator: records.filter(
-        (record) => record.type === "content_generator"
-      ).length,
-      creative_image: records.filter(
-        (record) => record.type === "creative_image"
-      ).length,
-    };
-  }, [records]);
+    return renderPackageDetail(detail.data);
+  }
 
   return (
-    <section className="historyCenterPanel">
-      <div className="historyCenterHeader">
+    <section className="historyPro">
+      <div className="historyPro__hero">
         <div>
-          <span className="historyEyebrow">Histórico Geral</span>
+          <span className="historyPro__eyebrow">Histórico Geral</span>
 
           <h2>Central de Histórico</h2>
 
           <p>
-            Veja campanhas, análises, conteúdos e criativos visuais gerados pelo
-            AffiliateAI Pro em um só lugar.
+            Consulte tudo que foi gerado no AffiliateAI Pro em um só lugar:
+            campanhas, análises, conteúdos, criativos visuais e pacotes finais
+            salvos no banco.
           </p>
         </div>
 
-        <button onClick={loadHistory} disabled={loading}>
-          {loading ? "Atualizando..." : "Atualizar histórico"}
-        </button>
+        <div className="historyPro__status">
+          <span>Total de registros</span>
+          <strong>{allItems.length}</strong>
+          <p>{loading ? "Atualizando histórico..." : "Histórico sincronizado"}</p>
+          <small>Última sincronização: {lastSync || "--:--:--"}</small>
+        </div>
       </div>
 
-      <div className="historyTabs">
-        <button
-          className={activeType === "all" ? "active" : ""}
-          onClick={() => setActiveType("all")}
-        >
-          Tudo <span>{counters.all}</span>
-        </button>
+      <div className="historyPro__toolbar">
+        <div className="historyPro__filters">
+          {filterOptions.map((filter) => (
+            <button
+              key={filter.key}
+              className={activeFilter === filter.key ? "active" : ""}
+              onClick={() => setActiveFilter(filter.key)}
+            >
+              <span>{filter.label}</span>
+              <strong>{filter.count}</strong>
+            </button>
+          ))}
+        </div>
 
         <button
-          className={activeType === "autopilot" ? "active" : ""}
-          onClick={() => setActiveType("autopilot")}
+          className="historyPro__refreshButton"
+          onClick={loadAllHistory}
+          disabled={loading}
         >
-          Autopilot <span>{counters.autopilot}</span>
-        </button>
-
-        <button
-          className={activeType === "product_hunter" ? "active" : ""}
-          onClick={() => setActiveType("product_hunter")}
-        >
-          Product Hunter <span>{counters.product_hunter}</span>
-        </button>
-
-        <button
-          className={activeType === "content_generator" ? "active" : ""}
-          onClick={() => setActiveType("content_generator")}
-        >
-          Content Generator <span>{counters.content_generator}</span>
-        </button>
-
-        <button
-          className={activeType === "creative_image" ? "active" : ""}
-          onClick={() => setActiveType("creative_image")}
-        >
-          Creative Image <span>{counters.creative_image}</span>
+          {loading ? "Atualizando..." : "Atualizar"}
         </button>
       </div>
 
       {errorMessage && <p className="errorMessage">{errorMessage}</p>}
+      {copyMessage && <p className="successMessage">{copyMessage}</p>}
 
-      <div className="historyLayout">
-        <div className="historyListPanel">
-          {filteredRecords.length === 0 ? (
-            <div className="historyEmpty">
-              Nenhum item encontrado nessa categoria ainda.
+      <div className="historyPro__layout">
+        <div className="historyPro__listPanel">
+          <div className="historyPro__sectionTitle">
+            <div>
+              <span>Registros</span>
+              <h3>{filteredItems.length} itens encontrados</h3>
+            </div>
+          </div>
+
+          {filteredItems.length === 0 ? (
+            <div className="historyPro__emptyList">
+              Nenhum item encontrado nesse filtro ainda.
             </div>
           ) : (
-            <div className="historyList">
-              {filteredRecords.map((record) => (
+            <div className="historyPro__list">
+              {filteredItems.map((item) => (
                 <button
-                  key={`${record.type}-${record.id}`}
-                  className={`historyItem ${
-                    selectedRecord?.id === record.id &&
-                    selectedRecord?.type === record.type
+                  key={`${item.type}-${item.id}`}
+                  className={`historyPro__item ${
+                    detail?.type === item.type && detail?.data?.id === item.id
                       ? "active"
                       : ""
                   }`}
-                  onClick={() => openRecord(record)}
+                  onClick={() => openDetail(item)}
                 >
-                  <div>
-                    <span>{formatType(record.type)}</span>
-                    <strong>{record.title}</strong>
-                    <p>{record.subtitle}</p>
+                  <div className="historyPro__itemMain">
+                    <span>{item.meta}</span>
+                    <strong>{item.title}</strong>
+                    <p>{item.subtitle}</p>
+                    <small>{formatDate(item.date)}</small>
                   </div>
 
-                  <div>
-                    {record.score !== undefined && (
-                      <strong>{record.score}/100</strong>
-                    )}
-
-                    <span>{formatDate(record.created_at)}</span>
+                  <div className="historyPro__itemSide">
+                    {item.score && <strong>{item.score}</strong>}
+                    {item.decision && <span>{item.decision}</span>}
                   </div>
                 </button>
               ))}
@@ -457,359 +710,20 @@ export default function HistoryCenter({ token }: HistoryCenterProps) {
           )}
         </div>
 
-        <div className="historyDetailsPanel">
-          {!selectedRecord && (
-            <div className="historyEmpty">
-              Selecione um item do histórico para ver os detalhes.
+        <div className="historyPro__detailPanel">
+          <div className="historyPro__detailHeader">
+            <div>
+              <span>Detalhes</span>
+              <h3>{loadingDetail ? "Carregando..." : getDetailTitle()}</h3>
+              <p>{getDetailSubtitle()}</p>
             </div>
-          )}
 
-          {selectedRecord && loadingDetails && (
-            <div className="historyEmpty">Carregando detalhes...</div>
-          )}
+            {detail && (
+              <button onClick={() => setDetail(null)}>Fechar</button>
+            )}
+          </div>
 
-          {selectedRecord && selectedDetails && (
-            <div className="historyDetails">
-              <div className="historyDetailsHeader">
-                <div>
-                  <span>{formatType(selectedRecord.type)}</span>
-                  <h3>{selectedRecord.title}</h3>
-                  <p>{selectedRecord.subtitle}</p>
-                </div>
-
-                <strong>{selectedRecord.status}</strong>
-              </div>
-
-              {selectedRecord.type === "autopilot" && (
-                <div className="historyDetailsGrid">
-                  <div>
-                    <h4>Estratégia</h4>
-                    <p>{getDetailValue(["strategy"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["strategy"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Headline</h4>
-                    <p>{getDetailValue(["headline"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["headline"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Copy curta</h4>
-                    <p>{getDetailValue(["short_copy"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["short_copy"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Roteiro</h4>
-                    <p>{getDetailValue(["video_script"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["video_script"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Brief de imagem</h4>
-                    <p>{getDetailValue(["image_brief"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["image_brief"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Narração</h4>
-                    <p>{getDetailValue(["voiceover_script"])}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailValue(["voiceover_script"]))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedRecord.type === "product_hunter" && (
-                <div className="historyDetailsGrid">
-                  <div>
-                    <h4>Produto</h4>
-                    <p>
-                      {getDetailValue(
-                        ["product_name", "product.name", "name"],
-                        selectedRecord.title
-                      )}
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4>Decisão</h4>
-                    <p>
-                      {getDetailValue(
-                        ["decision", "analysis.decision", "recommendation"],
-                        "Análise concluída."
-                      )}
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4>Estratégia</h4>
-                    <p>
-                      {getDetailValue(
-                        [
-                          "strategy.positioning",
-                          "strategy",
-                          "analysis.strategy.positioning",
-                          "sales_strategy",
-                        ],
-                        "Use dor clara, demonstração visual e CTA direto."
-                      )}
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4>Ideias</h4>
-                    <ul>
-                      {getDetailList(
-                        [
-                          "strategy.content_ideas",
-                          "analysis.strategy.content_ideas",
-                          "content_ideas",
-                        ],
-                        [
-                          "Mostrar antes e depois.",
-                          "Fazer demonstração rápida.",
-                          "Finalizar com CTA direto.",
-                        ]
-                      ).map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {selectedRecord.type === "content_generator" && (
-                <div className="historyDetailsGrid">
-                  <div>
-                    <h4>Headline</h4>
-                    <p>{getDetailValue(["headline"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["headline"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Copy curta</h4>
-                    <p>{getDetailValue(["short_copy"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["short_copy"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Legenda</h4>
-                    <p>{getDetailValue(["caption"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["caption"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Roteiro de vídeo</h4>
-                    <p>{getDetailValue(["video_script"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["video_script"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>WhatsApp</h4>
-                    <p>{getDetailValue(["whatsapp_text"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["whatsapp_text"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>CTA</h4>
-                    <p>{getDetailValue(["cta"])}</p>
-                    <button onClick={() => copyText(getDetailValue(["cta"]))}>
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Hashtags</h4>
-                    <p>{getDetailList(["hashtags"]).join(" ")}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailList(["hashtags"]).join(" "))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Variações de anúncio</h4>
-                    <ul>
-                      {getDetailList(["ad_variations"]).map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {selectedRecord.type === "creative_image" && (
-                <div className="historyDetailsGrid">
-                  <div>
-                    <h4>Título da arte</h4>
-                    <p>{getDetailValue(["art_headline"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["art_headline"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Subtítulo</h4>
-                    <p>{getDetailValue(["art_subtitle"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["art_subtitle"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>CTA</h4>
-                    <p>{getDetailValue(["cta"])}</p>
-                    <button onClick={() => copyText(getDetailValue(["cta"]))}>
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Paleta</h4>
-                    <p>{getDetailList(["color_palette"]).join(", ")}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailList(["color_palette"]).join(", "))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Briefing visual</h4>
-                    <p>{getDetailValue(["visual_brief"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["visual_brief"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Prompt de imagem</h4>
-                    <p>{getDetailValue(["image_prompt"])}</p>
-                    <button
-                      onClick={() => copyText(getDetailValue(["image_prompt"]))}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Negative prompt</h4>
-                    <p>{getDetailValue(["negative_prompt"])}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailValue(["negative_prompt"]))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Layout</h4>
-                    <p>{getDetailValue(["layout_direction"])}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailValue(["layout_direction"]))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Fundo</h4>
-                    <p>{getDetailValue(["background_style"])}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailValue(["background_style"]))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Tipografia</h4>
-                    <p>{getDetailValue(["typography_direction"])}</p>
-                    <button
-                      onClick={() =>
-                        copyText(getDetailValue(["typography_direction"]))
-                      }
-                    >
-                      Copiar
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4>Checklist</h4>
-                    <ul>
-                      {getDetailList(["checklist"]).map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {renderDetail()}
         </div>
       </div>
     </section>

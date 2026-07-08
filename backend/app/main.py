@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import redis
 
+from app.api.ai import router as ai_router
 from app.api.auth import router as auth_router
 from app.api.autopilot import router as autopilot_router
 from app.api.campaign_package import router as campaign_package_router
@@ -78,6 +79,7 @@ def health_check():
     }
 
 
+app.include_router(ai_router)
 app.include_router(auth_router)
 app.include_router(product_hunter_router)
 app.include_router(content_generator_router)
