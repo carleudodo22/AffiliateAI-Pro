@@ -39,13 +39,15 @@ def list_content_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
+    contents = (
         db.query(ContentGeneration)
         .filter(ContentGeneration.user_id == current_user.id)
         .order_by(ContentGeneration.created_at.desc())
         .limit(30)
         .all()
     )
+
+    return [service.normalize_history_item(content) for content in contents]
 
 
 @router.get("/{content_id}", response_model=ContentGeneratorResponse)

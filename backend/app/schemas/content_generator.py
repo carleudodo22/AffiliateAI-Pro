@@ -1,72 +1,54 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, Field
-
-
-ContentPlatform = Literal[
-    "tiktok",
-    "instagram",
-    "youtube_shorts",
-    "whatsapp",
-    "facebook_ads",
-    "google",
-]
-
-ContentTone = Literal[
-    "viral",
-    "direto",
-    "premium",
-    "emocional",
-    "agressivo",
-    "popular",
-]
-
-ContentObjective = Literal[
-    "vender",
-    "capturar_lead",
-    "aquecer_audiencia",
-    "validar_produto",
-]
+from pydantic import BaseModel
 
 
 class ContentGeneratorRequest(BaseModel):
-    product_name: str = Field(..., min_length=2)
-    niche: str = Field(..., min_length=2)
-    target_audience: str | None = None
+    product_name: str = "produto tendência"
+    niche: str = "beleza"
 
-    platform: ContentPlatform = "tiktok"
-    tone: ContentTone = "viral"
-    objective: ContentObjective = "vender"
+    platform: str | None = None
+    main_channel: str | None = None
+    channel: str | None = None
+
+    content_type: str = "short_video"
+    objective: str = "vender"
+    campaign_style: str = "viral"
+
+    target_audience: str | None = None
+    product_url: str | None = None
+    keywords: str | None = None
 
 
 class ContentGeneratorResponse(BaseModel):
     id: int | None = None
-
-    agent: str
-    status: str
+    agent: str = "Content Generator Agent"
+    status: str = "completed"
 
     product_name: str
     niche: str
-    target_audience: str | None = None
-
     platform: str
-    tone: str
-    objective: str
+    content_type: str
+
+    target_audience: str
 
     headline: str
-    short_copy: str
     caption: str
-    video_script: str
-    whatsapp_text: str
-    cta: str
+    script: str
+    short_copy: str
 
-    hashtags: list[str]
-    ad_variations: list[str]
+    hashtags: list[str] = []
+    ctas: list[str] = []
 
-    content_package: dict[str, Any]
+    generated_content: str
+    content_package: dict[str, Any] = {}
 
     created_at: datetime | None = None
+
+    model_config = {
+        "from_attributes": True,
+    }
 
 
 class ContentGeneratorHistoryItem(BaseModel):
@@ -75,8 +57,7 @@ class ContentGeneratorHistoryItem(BaseModel):
     product_name: str
     niche: str
     platform: str
-    tone: str
-    objective: str
+    content_type: str
 
     headline: str
     status: str
