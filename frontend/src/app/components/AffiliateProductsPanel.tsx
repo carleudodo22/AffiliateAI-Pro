@@ -56,6 +56,8 @@ export default function AffiliateProductsPanel({
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [autoPicking, setAutoPicking] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
+  const [cleaningDemo, setCleaningDemo] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -170,6 +172,107 @@ export default function AffiliateProductsPanel({
       setProducts([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function seedDemoProducts() {
+    setSeedingDemo(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para criar produtos demo.");
+      }
+
+      const response = await fetch(`${API_URL}/api/affiliate-products/seed-demo`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: AffiliateProduct[] = await response.json();
+
+      if (data.length > 0) {
+        fillFormWithProduct(data[0]);
+      }
+
+      setSuccessMessage(
+        `Produtos demo criados/carregados com sucesso. Total recebido: ${data.length}.`
+      );
+
+      await loadProducts();
+
+      window.dispatchEvent(new Event("affiliate-products-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao criar produtos demo.");
+      }
+    } finally {
+      setSeedingDemo(false);
+    }
+  }
+
+  async function cleanDemoProducts() {
+    const confirmed = window.confirm(
+      "Tem certeza que deseja remover apenas os produtos demo? Seus produtos manuais não serão apagados."
+    );
+
+    if (!confirmed) return;
+
+    setCleaningDemo(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para limpar produtos demo.");
+      }
+
+      const response = await fetch(`${API_URL}/api/affiliate-products/seed-demo`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data = await response.json();
+
+      resetForm();
+
+      setSuccessMessage(
+        data.message ||
+          `Produtos demo removidos com sucesso. Total: ${data.deleted_count || 0}.`
+      );
+
+      await loadProducts();
+
+      window.dispatchEvent(new Event("affiliate-products-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao limpar produtos demo.");
+      }
+    } finally {
+      setCleaningDemo(false);
     }
   }
 
@@ -424,8 +527,8 @@ export default function AffiliateProductsPanel({
 
           <p>
             Cadastre produtos, links de afiliado, preço, comissão, marketplace e
-            status. Essa é a base para o AffiliateAI Pro começar a escolher
-            produtos automaticamente nas próximas etapas.
+            status. Essa é a base para o AffiliateAI Pro escolher produtos,
+            analisar oportunidades e montar campanhas automaticamente.
           </p>
         </div>
 
@@ -443,6 +546,22 @@ export default function AffiliateProductsPanel({
             disabled={autoPicking || products.length === 0}
           >
             {autoPicking ? "Escolhendo..." : "Auto Pick"}
+          </button>
+
+          <button
+            className="productsAutoPickButton"
+            onClick={seedDemoProducts}
+            disabled={seedingDemo}
+          >
+            {seedingDemo ? "Criando demos..." : "Criar produtos demo"}
+          </button>
+
+          <button
+            className="productsAutoPickButton"
+            onClick={cleanDemoProducts}
+            disabled={cleaningDemo}
+          >
+            {cleaningDemo ? "Limpando demos..." : "Limpar produtos demo"}
           </button>
         </div>
       </div>
@@ -467,9 +586,9 @@ export default function AffiliateProductsPanel({
         </div>
 
         <div>
-          <span>Próxima fase</span>
-          <strong>Auto Pick</strong>
-          <p>Autopilot vai escolher produtos do catálogo.</p>
+          <span>Modo rápido</span>
+          <strong>Demo</strong>
+          <p>Crie ou limpe produtos prontos para testar.</p>
         </div>
       </div>
 
@@ -614,6 +733,14 @@ export default function AffiliateProductsPanel({
 
             <button onClick={resetForm}>Limpar formulário</button>
 
+            <button onClick={seedDemoProducts} disabled={seedingDemo}>
+              {seedingDemo ? "Criando..." : "Criar produtos demo"}
+            </button>
+
+            <button onClick={cleanDemoProducts} disabled={cleaningDemo}>
+              {cleaningDemo ? "Limpando..." : "Limpar produtos demo"}
+            </button>
+
             <button
               onClick={autoPickBestProduct}
               disabled={autoPicking || products.length === 0}
@@ -644,18 +771,25 @@ export default function AffiliateProductsPanel({
 
           {products.length === 0 ? (
             <div className="productsEmpty">
-              Nenhum produto cadastrado ainda. Cadastre seu primeiro produto
-              para começar a montar o catálogo.
+              Nenhum produto cadastrado ainda. Cadastre seu primeiro produto ou
+              clique em Criar produtos demo para testar o sistema rapidamente.
             </div>
           ) : (
             <div className="productsList">
               {products.map((product) => (
-                <button
+                <div
                   key={product.id}
                   className={`productsItem ${
                     selectedProduct?.id === product.id ? "active" : ""
                   }`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openProduct(product)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      openProduct(product);
+                    }
+                  }}
                 >
                   <div>
                     <span>{formatStatus(product.status)}</span>
@@ -680,7 +814,7 @@ export default function AffiliateProductsPanel({
                       Remover
                     </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -693,9 +827,8 @@ export default function AffiliateProductsPanel({
             <span>Produto selecionado</span>
             <h3>{selectedProduct.product_name}</h3>
             <p>
-              Esse produto já está salvo no banco e agora pode ser enviado para
-              o Product Hunter analisar score, oportunidade, riscos, público e
-              canais recomendados.
+              Esse produto já está salvo no banco e pode ser enviado para o
+              Product Hunter, Autopilot e Campaign Flow.
             </p>
           </div>
 

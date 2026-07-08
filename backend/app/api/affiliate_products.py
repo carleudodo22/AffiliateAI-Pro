@@ -33,6 +33,28 @@ def create_affiliate_product(
     )
 
 
+@router.post("/seed-demo", response_model=list[AffiliateProductResponse])
+def seed_demo_affiliate_products(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.create_demo_products(
+        db=db,
+        current_user=current_user,
+    )
+
+
+@router.delete("/seed-demo")
+def delete_demo_affiliate_products(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.delete_demo_products(
+        db=db,
+        current_user=current_user,
+    )
+
+
 @router.get("/", response_model=list[AffiliateProductResponse])
 def list_affiliate_products(
     only_active: bool = True,

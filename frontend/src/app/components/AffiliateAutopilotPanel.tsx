@@ -1,96 +1,69 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type ProductHunterPanelProps = {
+type AffiliateProductsPanelProps = {
   token: string;
-};
-
-type ProductHunterHistoryItem = {
-  id: number;
-  product_name: string;
-  niche: string;
-  marketplace: string;
-  score: string;
-  decision: string;
-  status: string;
-  created_at: string;
-};
-
-type ProductHunterResponse = {
-  id: number | null;
-  agent: string;
-  status: string;
-
-  product_name: string;
-  niche: string;
-  marketplace: string;
-
-  average_price: number;
-  commission_percent: number;
-
-  score: string;
-  decision: string;
-  summary: string;
-
-  strengths: string[];
-  weaknesses: string[];
-  opportunities: string[];
-  risks: string[];
-
-  target_audience: string;
-  content_angles: string[];
-  recommended_channels: string[];
-
-  analysis_package: Record<string, unknown>;
-
-  created_at: string | null;
 };
 
 type AffiliateProduct = {
   id: number;
+  user_id: number;
+
   product_name: string;
   niche: string;
   marketplace: string;
+
   product_url: string | null;
   affiliate_link: string | null;
+
   average_price: number;
   commission_percent: number;
+
   status: string;
   notes: string | null;
+
+  is_active: boolean;
+
+  created_at: string;
+  updated_at: string;
 };
 
 const DEFAULT_FORM = {
-  product_name: "produto tendência de tecnologia",
-  niche: "tecnologia",
+  product_name: "Escova secadora",
+  niche: "beleza",
   marketplace: "shopee",
-  average_price: "79.90",
-  commission_percent: "10",
-  competition_level: "media",
-  traffic_channel: "tiktok",
-  target_audience: "",
   product_url: "",
+  affiliate_link: "",
+  average_price: "119.90",
+  commission_percent: "12",
+  status: "precisa_se_afiliar",
+  notes: "",
 };
 
-export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
-  const [form, setForm] = useState(DEFAULT_FORM);
-
-  const [history, setHistory] = useState<ProductHunterHistoryItem[]>([]);
-  const [result, setResult] = useState<ProductHunterResponse | null>(null);
-  const [autoPickProduct, setAutoPickProduct] =
+export default function AffiliateProductsPanel({
+  token,
+}: AffiliateProductsPanelProps) {
+  const [products, setProducts] = useState<AffiliateProduct[]>([]);
+  const [selectedProduct, setSelectedProduct] =
     useState<AffiliateProduct | null>(null);
 
-  const [loadingSettings, setLoadingSettings] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [form, setForm] = useState(DEFAULT_FORM);
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [autoPicking, setAutoPicking] = useState(false);
-  const [openingId, setOpeningId] = useState<number | null>(null);
+  const [seedingDemo, setSeedingDemo] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [copyMessage, setCopyMessage] = useState("");
+
+  useEffect(() => {
+    loadProducts();
+  }, [token]);
 
   function getToken() {
     return token || localStorage.getItem("affiliateai_token") || "";
@@ -104,10 +77,32 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
 
     setErrorMessage("");
     setSuccessMessage("");
-    setCopyMessage("");
   }
 
-  function formatDate(value?: string | null) {
+  function fillFormWithProduct(product: AffiliateProduct) {
+    setSelectedProduct(product);
+
+    setForm({
+      product_name: product.product_name || "",
+      niche: product.niche || "",
+      marketplace: product.marketplace || "shopee",
+      product_url: product.product_url || "",
+      affiliate_link: product.affiliate_link || "",
+      average_price: String(product.average_price || 0),
+      commission_percent: String(product.commission_percent || 0),
+      status: product.status || "precisa_se_afiliar",
+      notes: product.notes || "",
+    });
+  }
+
+  function resetForm() {
+    setForm(DEFAULT_FORM);
+    setSelectedProduct(null);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  function formatDate(value?: string) {
     if (!value) return "Sem data";
 
     try {
@@ -126,106 +121,34 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
       kiwify: "Kiwify",
       monetizze: "Monetizze",
       outro: "Outro",
-      generic: "Genérico",
     };
 
     return labels[value] || value;
   }
 
-  function formatChannel(value: string) {
+  function formatStatus(value: string) {
     const labels: Record<string, string> = {
-      tiktok: "TikTok",
-      instagram: "Instagram",
-      youtube_shorts: "YouTube Shorts",
-      google: "Google",
-      facebook_ads: "Facebook Ads",
-      whatsapp: "WhatsApp",
-      pinterest: "Pinterest",
+      afiliado: "Afiliado",
+      precisa_se_afiliar: "Precisa se afiliar",
+      pesquisando: "Pesquisando",
+      pausado: "Pausado",
     };
 
     return labels[value] || value;
   }
 
-  function formatCompetition(value: string) {
-    const labels: Record<string, string> = {
-      baixa: "Baixa",
-      baixo: "Baixa",
-      media: "Média",
-      média: "Média",
-      medio: "Média",
-      médio: "Média",
-      alta: "Alta",
-      alto: "Alta",
-    };
-
-    return labels[value] || value;
-  }
-
-  const loadSettings = useCallback(async () => {
-    setLoadingSettings(true);
-
-    try {
-      const currentToken =
-        token || localStorage.getItem("affiliateai_token") || "";
-
-      if (!currentToken) return;
-
-      const response = await fetch(`${API_URL}/api/user-settings/me`, {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
-      });
-
-      if (!response.ok) return;
-
-      const settings = await response.json();
-
-      setForm((currentForm) => ({
-        ...currentForm,
-        niche:
-          settings.default_niche ||
-          localStorage.getItem("affiliateai_default_niche") ||
-          currentForm.niche,
-        marketplace:
-          settings.default_marketplace ||
-          localStorage.getItem("affiliateai_default_marketplace") ||
-          currentForm.marketplace,
-        traffic_channel:
-          settings.default_channel ||
-          localStorage.getItem("affiliateai_default_channel") ||
-          currentForm.traffic_channel,
-      }));
-    } catch {
-      const localNiche = localStorage.getItem("affiliateai_default_niche");
-      const localMarketplace = localStorage.getItem(
-        "affiliateai_default_marketplace"
-      );
-      const localChannel = localStorage.getItem("affiliateai_default_channel");
-
-      setForm((currentForm) => ({
-        ...currentForm,
-        niche: localNiche || currentForm.niche,
-        marketplace: localMarketplace || currentForm.marketplace,
-        traffic_channel: localChannel || currentForm.traffic_channel,
-      }));
-    } finally {
-      setLoadingSettings(false);
-    }
-  }, [token]);
-
-  const loadHistory = useCallback(async () => {
-    setLoadingHistory(true);
+  async function loadProducts() {
+    setLoading(true);
     setErrorMessage("");
 
     try {
-      const currentToken =
-        token || localStorage.getItem("affiliateai_token") || "";
+      const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para carregar o histórico.");
+        throw new Error("Você precisa estar logado para carregar produtos.");
       }
 
-      const response = await fetch(`${API_URL}/api/product-hunter/history`, {
+      const response = await fetch(`${API_URL}/api/affiliate-products/`, {
         headers: {
           Authorization: `Bearer ${currentToken}`,
         },
@@ -236,44 +159,79 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
         throw new Error(text);
       }
 
-      const data: ProductHunterHistoryItem[] = await response.json();
-
-      setHistory(data);
+      const data: AffiliateProduct[] = await response.json();
+      setProducts(data);
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao carregar histórico do Product Hunter.");
+        setErrorMessage("Erro ao carregar produtos.");
       }
 
-      setHistory([]);
+      setProducts([]);
     } finally {
-      setLoadingHistory(false);
+      setLoading(false);
     }
-  }, [token]);
+  }
 
-  useEffect(() => {
-    loadSettings();
-    loadHistory();
-
-    window.addEventListener("product-hunter-history-updated", loadHistory);
-
-    return () => {
-      window.removeEventListener("product-hunter-history-updated", loadHistory);
-    };
-  }, [loadSettings, loadHistory]);
-
-  async function useAutoPickProduct() {
-    setAutoPicking(true);
+  async function seedDemoProducts() {
+    setSeedingDemo(true);
     setErrorMessage("");
     setSuccessMessage("");
-    setCopyMessage("");
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para usar Auto Pick.");
+        throw new Error("Você precisa estar logado para criar produtos demo.");
+      }
+
+      const response = await fetch(`${API_URL}/api/affiliate-products/seed-demo`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: AffiliateProduct[] = await response.json();
+
+      if (data.length > 0) {
+        fillFormWithProduct(data[0]);
+      }
+
+      setSuccessMessage(
+        `Produtos demo criados/carregados com sucesso. Total recebido: ${data.length}.`
+      );
+
+      await loadProducts();
+
+      window.dispatchEvent(new Event("affiliate-products-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao criar produtos demo.");
+      }
+    } finally {
+      setSeedingDemo(false);
+    }
+  }
+
+  async function autoPickBestProduct() {
+    setAutoPicking(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para usar o Auto Pick.");
       }
 
       const response = await fetch(`${API_URL}/api/affiliate-products/auto-pick`, {
@@ -287,60 +245,122 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
         throw new Error(text);
       }
 
-      const product: AffiliateProduct = await response.json();
+      const data: AffiliateProduct = await response.json();
 
-      setAutoPickProduct(product);
-
-      setForm((currentForm) => ({
-        ...currentForm,
-        product_name: product.product_name || currentForm.product_name,
-        niche: product.niche || currentForm.niche,
-        marketplace: product.marketplace || currentForm.marketplace,
-        average_price: String(product.average_price || 0),
-        commission_percent: String(product.commission_percent || 0),
-        target_audience:
-          product.notes ||
-          `pessoas interessadas no nicho de ${product.niche}`,
-        product_url: product.affiliate_link || product.product_url || "",
-      }));
+      fillFormWithProduct(data);
 
       setSuccessMessage(
-        `Auto Pick carregou: ${product.product_name}. Agora clique em Analisar Produto.`
+        `Auto Pick escolheu: ${data.product_name}. Agora você pode analisar no Product Hunter.`
       );
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao usar Auto Pick.");
+        setErrorMessage("Erro ao escolher melhor produto.");
       }
     } finally {
       setAutoPicking(false);
     }
   }
 
-  async function analyzeProduct() {
-    setAnalyzing(true);
+  async function saveProduct() {
+    setSaving(true);
     setErrorMessage("");
     setSuccessMessage("");
-    setCopyMessage("");
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para analisar produto.");
+        throw new Error("Você precisa estar logado para salvar produtos.");
       }
 
       const payload = {
         product_name: form.product_name,
         niche: form.niche,
         marketplace: form.marketplace,
+        product_url: form.product_url || null,
+        affiliate_link: form.affiliate_link || null,
         average_price: Number(form.average_price) || 0,
         commission_percent: Number(form.commission_percent) || 0,
-        target_audience: form.target_audience || null,
-        product_url: form.product_url || null,
-        traffic_channel: form.traffic_channel,
-        competition_level: form.competition_level,
+        status: form.status,
+        notes: form.notes || null,
+      };
+
+      const isEditing = Boolean(selectedProduct);
+
+      const response = await fetch(
+        isEditing
+          ? `${API_URL}/api/affiliate-products/${selectedProduct?.id}`
+          : `${API_URL}/api/affiliate-products/`,
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentToken}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+      }
+
+      const data: AffiliateProduct = await response.json();
+
+      setSelectedProduct(data);
+      setSuccessMessage(
+        isEditing
+          ? "Produto atualizado com sucesso."
+          : "Produto cadastrado com sucesso."
+      );
+
+      await loadProducts();
+
+      window.dispatchEvent(new Event("affiliate-products-updated"));
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Erro ao salvar produto.");
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function analyzeSelectedProduct() {
+    if (!selectedProduct) {
+      setErrorMessage("Selecione um produto antes de analisar.");
+      return;
+    }
+
+    setAnalyzing(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const currentToken = getToken();
+
+      if (!currentToken) {
+        throw new Error("Você precisa estar logado para analisar produtos.");
+      }
+
+      const payload = {
+        product_name: selectedProduct.product_name,
+        niche: selectedProduct.niche,
+        marketplace: selectedProduct.marketplace,
+        average_price: selectedProduct.average_price || 0,
+        commission_percent: selectedProduct.commission_percent || 0,
+        target_audience:
+          selectedProduct.notes ||
+          `pessoas interessadas no nicho de ${selectedProduct.niche}`,
+        product_url:
+          selectedProduct.affiliate_link ||
+          selectedProduct.product_url ||
+          null,
       };
 
       const response = await fetch(`${API_URL}/api/product-hunter/analyze`, {
@@ -357,115 +377,177 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
         throw new Error(text);
       }
 
-      const data: ProductHunterResponse = await response.json();
+      await response.json();
 
-      setResult(data);
-      setSuccessMessage("Produto analisado e salvo no histórico.");
-
-      await loadHistory();
+      setSuccessMessage(
+        "Produto analisado no Product Hunter e salvo no histórico."
+      );
 
       window.dispatchEvent(new Event("product-hunter-history-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao analisar produto.");
+        setErrorMessage("Erro ao analisar produto no Product Hunter.");
       }
     } finally {
       setAnalyzing(false);
     }
   }
 
-  async function openHistoryItem(id: number) {
-    setOpeningId(id);
+  async function deleteProduct(productId: number) {
+    const confirmed = window.confirm(
+      "Tem certeza que deseja remover esse produto?"
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
-    setCopyMessage("");
 
     try {
       const currentToken = getToken();
 
       if (!currentToken) {
-        throw new Error("Você precisa estar logado para abrir o histórico.");
+        throw new Error("Você precisa estar logado.");
       }
 
-      const response = await fetch(`${API_URL}/api/product-hunter/${id}`, {
-        headers: {
-          Authorization: `Bearer ${currentToken}`,
-        },
-      });
+      const response = await fetch(
+        `${API_URL}/api/affiliate-products/${productId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text);
       }
 
-      const data: ProductHunterResponse = await response.json();
+      if (selectedProduct?.id === productId) {
+        resetForm();
+      }
 
-      setResult(data);
-      setSuccessMessage("Análise carregada.");
+      setSuccessMessage("Produto removido com sucesso.");
+
+      await loadProducts();
+
+      window.dispatchEvent(new Event("affiliate-products-updated"));
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Erro ao abrir análise.");
+        setErrorMessage("Erro ao remover produto.");
       }
     } finally {
-      setOpeningId(null);
+      setLoading(false);
     }
   }
 
-  async function copyAnalysis() {
-    if (!result) return;
+  function openProduct(product: AffiliateProduct) {
+    fillFormWithProduct(product);
 
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(result, null, 2));
-      setCopyMessage("Análise copiada.");
-    } catch {
-      setCopyMessage("Não foi possível copiar.");
-    }
+    setErrorMessage("");
+    setSuccessMessage("Produto carregado para edição.");
   }
+
+  const affiliatedProducts = products.filter(
+    (product) => product.status === "afiliado"
+  );
+
+  const pendingProducts = products.filter(
+    (product) => product.status === "precisa_se_afiliar"
+  );
 
   return (
-    <section className="agentPanel productHunterPanel">
-      <div className="agentHero">
+    <section className="productsPanel">
+      <div className="productsHeader">
         <div>
-          <span className="agentEyebrow">Product Hunter Agent</span>
+          <span className="productsEyebrow">Catálogo de Produtos</span>
 
-          <h2>Caçador de Produtos</h2>
+          <h2>Produtos Afiliados</h2>
 
           <p>
-            Analise produtos para afiliados com score, demanda, concorrência,
-            comissão, risco e estratégia de venda. Agora também puxa o melhor
-            produto real do seu Catálogo com Auto Pick.
+            Cadastre produtos, links de afiliado, preço, comissão, marketplace e
+            status. Essa é a base para o AffiliateAI Pro escolher produtos,
+            analisar oportunidades e montar campanhas automaticamente.
           </p>
         </div>
 
-        <div className="agentHeroStats">
-          <span>Configurações</span>
-          <strong>Sincronizadas</strong>
+        <div className="productsStatus">
+          <span>Total no catálogo</span>
+          <strong>{products.length}</strong>
           <p>
-            {loadingSettings
-              ? "Carregando preferências..."
-              : "preferências do usuário ativas"}
+            {affiliatedProducts.length} afiliados • {pendingProducts.length}{" "}
+            pendentes
           </p>
+
+          <button
+            className="productsAutoPickButton"
+            onClick={autoPickBestProduct}
+            disabled={autoPicking || products.length === 0}
+          >
+            {autoPicking ? "Escolhendo..." : "Auto Pick"}
+          </button>
+
+          <button
+            className="productsAutoPickButton"
+            onClick={seedDemoProducts}
+            disabled={seedingDemo}
+          >
+            {seedingDemo ? "Criando demos..." : "Criar produtos demo"}
+          </button>
         </div>
       </div>
 
-      <div className="agentWorkspace">
-        <div className="agentFormCard">
-          <div className="agentSectionHeader">
+      <div className="productsStats">
+        <div>
+          <span>Produtos ativos</span>
+          <strong>{products.filter((item) => item.is_active).length}</strong>
+          <p>Produtos disponíveis para campanhas.</p>
+        </div>
+
+        <div>
+          <span>Afiliados</span>
+          <strong>{affiliatedProducts.length}</strong>
+          <p>Produtos com status de afiliado.</p>
+        </div>
+
+        <div>
+          <span>Pendentes</span>
+          <strong>{pendingProducts.length}</strong>
+          <p>Produtos que ainda precisam de link.</p>
+        </div>
+
+        <div>
+          <span>Modo rápido</span>
+          <strong>Demo</strong>
+          <p>Crie produtos prontos para testar o sistema.</p>
+        </div>
+      </div>
+
+      <div className="productsLayout">
+        <div className="productsFormCard">
+          <div className="productsSectionHeader">
             <div>
-              <span>Análise</span>
-              <h3>Dados do produto</h3>
+              <span>
+                {selectedProduct ? "Editando produto" : "Novo produto"}
+              </span>
+              <h3>
+                {selectedProduct
+                  ? selectedProduct.product_name
+                  : "Cadastrar produto"}
+              </h3>
             </div>
 
-            <button onClick={loadSettings} disabled={loadingSettings}>
-              {loadingSettings ? "Carregando..." : "Usar preferências"}
-            </button>
+            {selectedProduct && <button onClick={resetForm}>Novo</button>}
           </div>
 
-          <div className="agentFormGrid">
+          <div className="productsFormGrid">
             <label>
               Nome do produto
               <input
@@ -511,7 +593,7 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
                 onChange={(event) =>
                   updateForm("average_price", event.target.value)
                 }
-                placeholder="79.90"
+                placeholder="119.90"
               />
             </label>
 
@@ -522,55 +604,25 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
                 onChange={(event) =>
                   updateForm("commission_percent", event.target.value)
                 }
-                placeholder="10"
+                placeholder="12"
               />
             </label>
 
             <label>
-              Concorrência
+              Status
               <select
-                value={form.competition_level}
-                onChange={(event) =>
-                  updateForm("competition_level", event.target.value)
-                }
+                value={form.status}
+                onChange={(event) => updateForm("status", event.target.value)}
               >
-                <option value="baixa">Baixa</option>
-                <option value="media">Média</option>
-                <option value="alta">Alta</option>
+                <option value="afiliado">Afiliado</option>
+                <option value="precisa_se_afiliar">Precisa se afiliar</option>
+                <option value="pesquisando">Pesquisando</option>
+                <option value="pausado">Pausado</option>
               </select>
             </label>
 
-            <label>
-              Canal de tráfego
-              <select
-                value={form.traffic_channel}
-                onChange={(event) =>
-                  updateForm("traffic_channel", event.target.value)
-                }
-              >
-                <option value="tiktok">TikTok</option>
-                <option value="instagram">Instagram</option>
-                <option value="youtube_shorts">YouTube Shorts</option>
-                <option value="google">Google</option>
-                <option value="facebook_ads">Facebook Ads</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="pinterest">Pinterest</option>
-              </select>
-            </label>
-
-            <label>
-              Público-alvo
-              <input
-                value={form.target_audience}
-                onChange={(event) =>
-                  updateForm("target_audience", event.target.value)
-                }
-                placeholder="Ex: pessoas que buscam praticidade"
-              />
-            </label>
-
-            <label>
-              Link do produto ou afiliado
+            <label className="productsWide">
+              Link do produto
               <input
                 value={form.product_url}
                 onChange={(event) =>
@@ -579,222 +631,183 @@ export default function ProductHunterPanel({ token }: ProductHunterPanelProps) {
                 placeholder="https://..."
               />
             </label>
-          </div>
 
-          <div className="agentActions">
-            <button
-              className="primaryButton"
-              onClick={analyzeProduct}
-              disabled={analyzing || autoPicking}
-            >
-              {analyzing ? "Analisando..." : "Analisar Produto"}
-            </button>
+            <label className="productsWide">
+              Link de afiliado
+              <input
+                value={form.affiliate_link}
+                onChange={(event) =>
+                  updateForm("affiliate_link", event.target.value)
+                }
+                placeholder="Cole aqui seu link de afiliado"
+              />
+            </label>
 
-            <button
-              onClick={useAutoPickProduct}
-              disabled={autoPicking || analyzing}
-            >
-              {autoPicking ? "Buscando Auto Pick..." : "Usar Auto Pick"}
-            </button>
-
-            <button onClick={loadHistory} disabled={loadingHistory}>
-              {loadingHistory ? "Atualizando..." : "Atualizar histórico"}
-            </button>
+            <label className="productsWide">
+              Observações
+              <textarea
+                value={form.notes}
+                onChange={(event) => updateForm("notes", event.target.value)}
+                placeholder="Ex: produto bom para vídeos curtos, precisa testar criativo..."
+              />
+            </label>
           </div>
 
           {errorMessage && <p className="errorMessage">{errorMessage}</p>}
           {successMessage && <p className="successMessage">{successMessage}</p>}
-          {copyMessage && <p className="successMessage">{copyMessage}</p>}
 
-          {autoPickProduct && (
-            <div className="agentInfoBox">
-              <span>Produto carregado do Catálogo</span>
+          <div className="productsActions">
+            <button
+              className="primaryButton"
+              onClick={saveProduct}
+              disabled={saving}
+            >
+              {saving
+                ? "Salvando..."
+                : selectedProduct
+                  ? "Atualizar produto"
+                  : "Cadastrar produto"}
+            </button>
 
-              <p>
-                <strong>{autoPickProduct.product_name}</strong> foi escolhido
-                automaticamente. Status: {autoPickProduct.status} • Marketplace:{" "}
-                {formatMarketplace(autoPickProduct.marketplace)} • Comissão:{" "}
-                {autoPickProduct.commission_percent}%.
-              </p>
-            </div>
-          )}
+            <button onClick={resetForm}>Limpar formulário</button>
+
+            <button
+              onClick={seedDemoProducts}
+              disabled={seedingDemo}
+            >
+              {seedingDemo ? "Criando..." : "Criar produtos demo"}
+            </button>
+
+            <button
+              onClick={autoPickBestProduct}
+              disabled={autoPicking || products.length === 0}
+            >
+              {autoPicking ? "Escolhendo..." : "Auto Pick"}
+            </button>
+
+            <button
+              onClick={analyzeSelectedProduct}
+              disabled={!selectedProduct || analyzing}
+            >
+              {analyzing ? "Analisando..." : "Analisar no Product Hunter"}
+            </button>
+          </div>
         </div>
 
-        <div className="agentHistoryCard">
-          <div className="agentSectionHeader">
+        <div className="productsListCard">
+          <div className="productsSectionHeader">
             <div>
-              <span>Histórico</span>
-              <h3>Histórico de análises</h3>
+              <span>Banco de produtos</span>
+              <h3>Produtos cadastrados</h3>
             </div>
 
-            <button onClick={loadHistory} disabled={loadingHistory}>
-              {loadingHistory ? "Atualizando..." : "Atualizar"}
+            <button onClick={loadProducts} disabled={loading}>
+              {loading ? "Atualizando..." : "Atualizar"}
             </button>
           </div>
 
-          {history.length === 0 ? (
-            <div className="agentEmptyBox">
-              Nenhuma análise salva pelo Product Hunter.
+          {products.length === 0 ? (
+            <div className="productsEmpty">
+              Nenhum produto cadastrado ainda. Cadastre seu primeiro produto ou
+              clique em Criar produtos demo para testar o sistema rapidamente.
             </div>
           ) : (
-            <div className="agentHistoryList">
-              {history.map((item) => (
-                <button
-                  key={item.id}
-                  className={`agentHistoryItem ${
-                    result?.id === item.id ? "active" : ""
+            <div className="productsList">
+              {products.map((product) => (
+                <div
+                  key={product.id}
+                  className={`productsItem ${
+                    selectedProduct?.id === product.id ? "active" : ""
                   }`}
-                  onClick={() => openHistoryItem(item.id)}
-                  disabled={openingId === item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openProduct(product)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      openProduct(product);
+                    }
+                  }}
                 >
                   <div>
-                    <span>{item.decision}</span>
-                    <strong>{item.product_name}</strong>
+                    <span>{formatStatus(product.status)}</span>
+                    <strong>{product.product_name}</strong>
                     <p>
-                      {formatMarketplace(item.marketplace)} • {item.niche}
+                      {product.niche} • {formatMarketplace(product.marketplace)}
                     </p>
-                    <small>{formatDate(item.created_at)}</small>
+                    <small>{formatDate(product.created_at)}</small>
                   </div>
 
                   <div>
-                    <strong>{item.score}</strong>
-                    <p>{openingId === item.id ? "Abrindo..." : "score"}</p>
+                    <strong>R$ {product.average_price.toFixed(2)}</strong>
+                    <p>{product.commission_percent}% comissão</p>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        deleteProduct(product.id);
+                      }}
+                    >
+                      Remover
+                    </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {result && (
-        <div className="agentResultCard">
-          <div className="agentResultHeader">
-            <div>
-              <span>Resultado da análise</span>
-
-              <h3>{result.product_name}</h3>
-
-              <p>
-                {result.decision} • Score {result.score} •{" "}
-                {formatDate(result.created_at)}
-              </p>
-            </div>
-
-            <button onClick={copyAnalysis}>Copiar análise</button>
+      {selectedProduct && (
+        <div className="productsDetailBox">
+          <div>
+            <span>Produto selecionado</span>
+            <h3>{selectedProduct.product_name}</h3>
+            <p>
+              Esse produto já está salvo no banco e pode ser enviado para o
+              Product Hunter, Autopilot e Campaign Flow.
+            </p>
           </div>
 
-          <div className="agentResultStats">
+          <div className="productsDetailGrid">
             <div>
-              <span>Nicho</span>
-              <strong>{result.niche}</strong>
+              <span>Status</span>
+              <strong>{formatStatus(selectedProduct.status)}</strong>
             </div>
 
             <div>
               <span>Marketplace</span>
-              <strong>{formatMarketplace(result.marketplace)}</strong>
+              <strong>{formatMarketplace(selectedProduct.marketplace)}</strong>
             </div>
 
             <div>
-              <span>Preço médio</span>
-              <strong>R$ {Number(result.average_price || 0).toFixed(2)}</strong>
+              <span>Preço</span>
+              <strong>R$ {selectedProduct.average_price.toFixed(2)}</strong>
             </div>
 
             <div>
               <span>Comissão</span>
-              <strong>{result.commission_percent}%</strong>
-            </div>
-
-            <div>
-              <span>Status</span>
-              <strong>{result.status}</strong>
-            </div>
-
-            <div>
-              <span>Agente</span>
-              <strong>{result.agent}</strong>
+              <strong>{selectedProduct.commission_percent}%</strong>
             </div>
           </div>
 
-          <div className="agentResultGrid">
-            <div>
-              <span>Resumo</span>
-              <p>{result.summary}</p>
-            </div>
+          <div className="productsLinks">
+            <button onClick={analyzeSelectedProduct} disabled={analyzing}>
+              {analyzing ? "Analisando..." : "Analisar no Product Hunter"}
+            </button>
 
-            <div>
-              <span>Público-alvo</span>
-              <p>{result.target_audience}</p>
-            </div>
+            {selectedProduct.product_url && (
+              <a href={selectedProduct.product_url} target="_blank">
+                Abrir produto
+              </a>
+            )}
+
+            {selectedProduct.affiliate_link && (
+              <a href={selectedProduct.affiliate_link} target="_blank">
+                Abrir link de afiliado
+              </a>
+            )}
           </div>
-
-          <div className="agentResultLists">
-            <div>
-              <h4>Pontos fortes</h4>
-
-              <ul>
-                {result.strengths.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4>Pontos fracos</h4>
-
-              <ul>
-                {result.weaknesses.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4>Oportunidades</h4>
-
-              <ul>
-                {result.opportunities.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4>Riscos</h4>
-
-              <ul>
-                {result.risks.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4>Ângulos de conteúdo</h4>
-
-              <ul>
-                {result.content_angles.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4>Canais recomendados</h4>
-
-              <ul>
-                {result.recommended_channels.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <details className="agentRawDetails">
-            <summary>Ver pacote técnico completo</summary>
-
-            <pre>{JSON.stringify(result.analysis_package, null, 2)}</pre>
-          </details>
         </div>
       )}
     </section>
