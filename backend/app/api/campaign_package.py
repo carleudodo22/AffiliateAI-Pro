@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.campaign_package import (
     CampaignPackageRequest,
     CampaignPackageResponse,
+    CampaignPackageUpdateRequest,
 )
 from app.services.campaign_package import CampaignPackageService
 
@@ -69,6 +70,21 @@ def get_campaign_package(
         )
 
     return service.get_package_response(package)
+
+
+@router.put("/{package_id}", response_model=CampaignPackageResponse)
+def update_campaign_package(
+    package_id: int,
+    data: CampaignPackageUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.update_package(
+        package_id=package_id,
+        data=data,
+        db=db,
+        current_user=current_user,
+    )
 
 
 @router.post("/{package_id}/duplicate", response_model=CampaignPackageResponse)

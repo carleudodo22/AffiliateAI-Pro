@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.campaign_package import (
     CampaignPackageRequest,
     CampaignPackageResponse,
+    CampaignPackageUpdateRequest,
 )
 
 
@@ -89,24 +90,99 @@ class CampaignPackageService:
 
         return self.get_package_response(saved_package)
 
+    def update_package(
+        self,
+        package_id: int,
+        data: CampaignPackageUpdateRequest,
+        db: Session,
+        current_user: User,
+    ) -> CampaignPackageResponse:
+        package = self._get_user_package(
+            package_id=package_id,
+            db=db,
+            current_user=current_user,
+        )
+
+        if data.product_name is not None:
+            clean_product_name = data.product_name.strip()
+
+            if clean_product_name:
+                package.product_name = clean_product_name
+
+        if data.niche is not None:
+            clean_niche = data.niche.strip().lower()
+
+            if clean_niche:
+                package.niche = clean_niche
+
+        if data.marketplace is not None:
+            clean_marketplace = data.marketplace.strip().lower()
+
+            if clean_marketplace:
+                package.marketplace = clean_marketplace
+
+        if data.score is not None:
+            clean_score = str(data.score).strip()
+
+            if clean_score:
+                package.score = clean_score
+
+        if data.decision is not None:
+            clean_decision = data.decision.strip()
+
+            if clean_decision:
+                package.decision = clean_decision
+
+        if data.package_text is not None:
+            package.package_text = data.package_text.strip()
+
+        if data.status is not None:
+            clean_status = data.status.strip().lower()
+
+            if clean_status:
+                package.status = clean_status
+
+        current_source_data = package.source_data or {}
+
+        update_log = {
+            "updated": True,
+            "updated_at": datetime.utcnow().isoformat(),
+            "updated_fields": [
+                key
+                for key, value in data.model_dump().items()
+                if value is not None
+            ],
+        }
+
+        if data.source_data is not None:
+            package.source_data = {
+                **current_source_data,
+                **data.source_data,
+                "last_update": update_log,
+            }
+        else:
+            package.source_data = {
+                **current_source_data,
+                "last_update": update_log,
+            }
+
+        db.add(package)
+        db.commit()
+        db.refresh(package)
+
+        return self.get_package_response(package)
+
     def duplicate_package(
         self,
         package_id: int,
         db: Session,
         current_user: User,
     ) -> CampaignPackageResponse:
-        original = (
-            db.query(CampaignPackageRun)
-            .filter(CampaignPackageRun.id == package_id)
-            .filter(CampaignPackageRun.user_id == current_user.id)
-            .first()
+        original = self._get_user_package(
+            package_id=package_id,
+            db=db,
+            current_user=current_user,
         )
-
-        if original is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Campaign Package não encontrado.",
-            )
 
         original_source_data = original.source_data or {}
 
@@ -156,6 +232,27 @@ class CampaignPackageService:
             status=package.status,
             created_at=package.created_at,
         )
+
+    def _get_user_package(
+        self,
+        package_id: int,
+        db: Session,
+        current_user: User,
+    ) -> CampaignPackageRun:
+        package = (
+            db.query(CampaignPackageRun)
+            .filter(CampaignPackageRun.id == package_id)
+            .filter(CampaignPackageRun.user_id == current_user.id)
+            .first()
+        )
+
+        if package is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Campaign Package não encontrado.",
+            )
+
+        return package
 
     def _calculate_score(
         self,
